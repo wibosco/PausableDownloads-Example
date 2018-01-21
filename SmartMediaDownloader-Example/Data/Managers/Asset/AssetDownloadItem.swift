@@ -17,6 +17,7 @@ class AssetDownloadItem {
     var completionHandler: AssetDownloadItemCompletionHandler?
     
     var forcedDownload = false
+    var downloadedPercentage = 0.0
     
     // MARK: - Init
     
@@ -24,16 +25,25 @@ class AssetDownloadItem {
         self.task = task
     }
     
-    // MARK: - Pause
+    // MARK: - Lifecycle
     
     func pause() {
-        print("pausing download: \(task.currentRequest?.url?.absoluteString ?? "unknown")")
+        forcedDownload = false
         task.suspend()
     }
     
     func resume() {
-        print("resuming/starting download: \(task.currentRequest?.url?.absoluteString ?? "unknown")")
         task.resume()
+    }
+    
+    func cancel() {
+        task.cancel()
+    }
+    
+    // MARK: - Meta
+    
+    var url: URL {
+        return task.currentRequest!.url!
     }
 }
 

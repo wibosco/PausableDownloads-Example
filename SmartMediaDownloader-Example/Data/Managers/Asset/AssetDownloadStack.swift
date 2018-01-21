@@ -10,37 +10,75 @@ import Foundation
 
 class AssetDownloadStack {
     
-    private var stack = [AssetDownloadItem]()
+    fileprivate var array = [AssetDownloadItem]()
     
-    // MARK: - Push
+    // MARK: - Lifecycle
     
-    func push(assetDownloadItem: AssetDownloadItem, forceDownload: Bool = false) {
-        print("Pushed \(assetDownloadItem.task.currentRequest?.url?.absoluteString ?? "unknown") onto stack")
-        stack.append(assetDownloadItem)
-        print("Stack has \(stack.count) item(s)")
+    func push(_ assetDownloadItem: AssetDownloadItem) {
+        array.append(assetDownloadItem)
     }
-    
-    // MARK: - Pop
     
     func pop() -> AssetDownloadItem? {
         guard let item = peek() else {
             return nil
         }
         
-        print("Popping \(item.task.currentRequest?.url?.absoluteString ?? "unknown") from stack")
-        stack.removeLast()
-        print("Stack has \(stack.count) item(s)")
+        array.removeLast()
         
         return item
     }
     
     func peek() -> AssetDownloadItem? {
-        return stack.last
+        return array.last
     }
     
-    // MARK: - Count
+    func remove(_ assetDownloadItem: AssetDownloadItem) {
+        guard let index = array.index(of: assetDownloadItem) else {
+            return
+        }
+        
+        array.remove(at: index)
+    }
+    
+    // MARK: - Meta
     
     var count: Int {
-        return stack.count
+        return array.count
     }
 }
+
+extension AssetDownloadStack: Sequence {
+    
+    // MARK: - Sequence
+    
+    func makeIterator() -> AssetDownloadStackIterator {
+        return AssetDownloadStackIterator(self)
+    }
+}
+
+struct AssetDownloadStackIterator: IteratorProtocol {
+    
+    private let assetDownloadStack: AssetDownloadStack
+    private var index = 0
+    
+    // MARK: - Init
+    
+    init(_ assetDownloadStack: AssetDownloadStack) {
+        self.assetDownloadStack = assetDownloadStack
+        index = (assetDownloadStack.array.count - 1)
+    }
+    
+    // MARK: - Next
+    
+    mutating func next() -> AssetDownloadItem? {
+        guard index > 0 else {
+            return nil
+        }
+        
+        let assetDownloadItem = assetDownloadStack.array[index]
+        index -= 1
+        
+        return assetDownloadItem
+    }
+}
+

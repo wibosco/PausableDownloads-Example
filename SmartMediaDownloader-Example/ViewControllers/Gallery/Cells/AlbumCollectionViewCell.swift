@@ -10,7 +10,7 @@ import UIKit
 
 class AlbumCollectionViewCell: UICollectionViewCell {
 
-    @IBOutlet weak var albumItemsCountLabel: UILabel!
+    @IBOutlet weak var informationalLabel: UILabel!
     @IBOutlet weak var thumbnailImageView: UIImageView!
     
     private var assetDataManager = AssetDataManager()
@@ -27,7 +27,7 @@ class AlbumCollectionViewCell: UICollectionViewCell {
     
     func configure(galleryAlbum: GalleryAlbum) {
         
-        albumItemsCountLabel.text = "Photos in album: \(galleryAlbum.items.count)"
+        informationalLabel.text = "\(galleryAlbum.thumbnailAsset.url.absoluteString)"
         
         assetDataManager.loadAlbumThumbnailAsset(galleryAlbum.thumbnailAsset) { [weak self] (result) in
             switch result {

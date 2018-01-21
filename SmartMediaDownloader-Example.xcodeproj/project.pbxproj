@@ -287,9 +287,9 @@
 		3DF298B5200FE7AC000EE68C /* Asset */ = {
 			isa = PBXGroup;
 			children = (
-				3DF298B6200FE7AC000EE68C /* AssetDownloadStack.swift */,
-				3DF298B7200FE7AC000EE68C /* AssetDownloadManager.swift */,
 				3DF298B8200FE7AC000EE68C /* AssetDownloadItem.swift */,
+				3DF298B7200FE7AC000EE68C /* AssetDownloadManager.swift */,
+				3DF298B6200FE7AC000EE68C /* AssetDownloadStack.swift */,
 			);
 			path = Asset;
 			sourceTree = "<group>";

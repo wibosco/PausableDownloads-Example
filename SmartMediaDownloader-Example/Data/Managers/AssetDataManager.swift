@@ -34,6 +34,10 @@ class AssetDataManager {
         }
     }
     
+    func cancelLoadingGalleryItemAsset(_ asset: GalleryAsset) {
+        assetDownloadManager.cancelDownload(url: asset.url)
+    }
+    
     // MARK: - Asset
     
     private func locallyLoadAsset(_ asset: GalleryAsset, completionHandler: @escaping ((_ result: DataRequestResult<(GalleryAsset, UIImage)>) -> ())) {

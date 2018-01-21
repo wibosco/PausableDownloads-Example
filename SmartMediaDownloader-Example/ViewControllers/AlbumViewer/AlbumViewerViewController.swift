@@ -48,22 +48,22 @@ class AlbumViewerViewController: UIViewController {
     // MARK: - GestureRecognizer
     
     @IBAction func didTap(_ sender: Any) {
+        cancelAssertRetrieval()
         index += 1
         
         if index < galleryItems.count {
             retrieveAsset()
+            updateTitle()
         } else {
             navigationController?.popViewController(animated: true)
         }
-        
-        updateTitle()
     }
     
     // MARK: - Reuse
     
     func prepareForReuse() {
         loadingActivityIndicator.startAnimating()
-        assetImageView.image = nil//UIImage(named: "icon-placeholder")
+        assetImageView.image = nil
     }
     
     // MARK: - Asset
@@ -76,6 +76,11 @@ class AlbumViewerViewController: UIViewController {
             guard let strongSelf = self else {
                 return
             }
+            
+            guard strongSelf.index <= strongSelf.galleryItems.count else {
+                return
+            }
+            
             switch result {
             case .success(let (asset, image)):
                 let currentGalleryItem = strongSelf.galleryItems[strongSelf.index]
@@ -88,5 +93,10 @@ class AlbumViewerViewController: UIViewController {
                 print(error)
             }
         }
+    }
+    
+    func cancelAssertRetrieval() {
+        let galleryItem = galleryItems[index]
+        assetDataManager.cancelLoadingGalleryItemAsset(galleryItem.asset)
     }
 }

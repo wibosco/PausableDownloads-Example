@@ -14,8 +14,10 @@ enum DataRequestResult<T> {
 }
 
 enum APIError: Error {
+    case unknown
     case missingData
     case serialization
+    case invalidData
 }
 
 class URLRequestFactory {

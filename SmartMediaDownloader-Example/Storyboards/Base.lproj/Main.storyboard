@@ -56,10 +56,10 @@
                                                     <rect key="frame" x="0.0" y="0.0" width="154" height="154"/>
                                                 </imageView>
                                                 <view alpha="0.5" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="SZ5-Kg-zqi">
-                                                    <rect key="frame" x="0.0" y="133" width="154" height="21"/>
+                                                    <rect key="frame" x="0.0" y="138" width="154" height="16"/>
                                                     <subviews>
-                                                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="4" textAlignment="right" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" minimumScaleFactor="0.5" translatesAutoresizingMaskIntoConstraints="NO" id="dBB-Jj-QdF">
-                                                            <rect key="frame" x="8" y="0.0" width="138" height="21"/>
+                                                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="4" textAlignment="right" lineBreakMode="characterWrap" numberOfLines="0" baselineAdjustment="alignBaselines" minimumScaleFactor="0.5" translatesAutoresizingMaskIntoConstraints="NO" id="dBB-Jj-QdF">
+                                                            <rect key="frame" x="8" y="0.0" width="138" height="16"/>
                                                             <fontDescription key="fontDescription" type="boldSystem" pointSize="13"/>
                                                             <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                                             <nil key="highlightedColor"/>
@@ -68,9 +68,9 @@
                                                     <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                                     <constraints>
                                                         <constraint firstItem="dBB-Jj-QdF" firstAttribute="leading" secondItem="SZ5-Kg-zqi" secondAttribute="leading" constant="8" id="STC-Jy-vS7"/>
-                                                        <constraint firstAttribute="height" constant="21" id="Zx3-Hn-MEj"/>
                                                         <constraint firstItem="dBB-Jj-QdF" firstAttribute="top" secondItem="SZ5-Kg-zqi" secondAttribute="top" id="bCE-Rn-EwW"/>
                                                         <constraint firstAttribute="trailing" secondItem="dBB-Jj-QdF" secondAttribute="trailing" constant="8" id="eiP-Fn-c78"/>
+                                                        <constraint firstAttribute="height" secondItem="dBB-Jj-QdF" secondAttribute="height" id="rOv-qy-2wK"/>
                                                         <constraint firstAttribute="bottom" secondItem="dBB-Jj-QdF" secondAttribute="bottom" id="tVX-Vq-SZa"/>
                                                     </constraints>
                                                 </view>
@@ -86,7 +86,7 @@
                                             <constraint firstAttribute="bottom" secondItem="2zk-nB-u0f" secondAttribute="bottom" id="lEv-tC-gxX"/>
                                         </constraints>
                                         <connections>
-                                            <outlet property="albumItemsCountLabel" destination="dBB-Jj-QdF" id="gAe-sv-WRd"/>
+                                            <outlet property="informationalLabel" destination="dBB-Jj-QdF" id="gAe-sv-WRd"/>
                                             <outlet property="thumbnailImageView" destination="2zk-nB-u0f" id="N8m-Vh-qsu"/>
                                             <segue destination="hqF-hC-GEk" kind="show" identifier="showAlbum" id="KAm-46-ovW"/>
                                         </connections>
