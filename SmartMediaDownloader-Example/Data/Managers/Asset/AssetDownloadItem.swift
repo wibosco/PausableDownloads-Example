@@ -16,6 +16,8 @@ class AssetDownloadItem {
     
     var completionHandler: AssetDownloadItemCompletionHandler?
     
+    var forcedDownload = false
+    
     // MARK: - Init
     
     init(task: URLSessionDownloadTask) {
@@ -25,10 +27,20 @@ class AssetDownloadItem {
     // MARK: - Pause
     
     func pause() {
+        print("pausing download: \(task.currentRequest?.url?.absoluteString ?? "unknown")")
         task.suspend()
     }
     
     func resume() {
+        print("resuming/starting download: \(task.currentRequest?.url?.absoluteString ?? "unknown")")
         task.resume()
     }
 }
+
+extension AssetDownloadItem: Equatable {}
+
+func ==(lhs: AssetDownloadItem, rhs: AssetDownloadItem) -> Bool {
+    return lhs.task == rhs.task &&
+        lhs.forcedDownload == lhs.forcedDownload
+}
+

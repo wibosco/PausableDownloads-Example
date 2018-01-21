@@ -15,12 +15,32 @@ class AssetDownloadStack {
     // MARK: - Push
     
     func push(assetDownloadItem: AssetDownloadItem, forceDownload: Bool = false) {
+        print("Pushed \(assetDownloadItem.task.currentRequest?.url?.absoluteString ?? "unknown") onto stack")
         stack.append(assetDownloadItem)
+        print("Stack has \(stack.count) item(s)")
     }
     
     // MARK: - Pop
     
     func pop() -> AssetDownloadItem? {
-        return stack.removeLast()
+        guard let item = peek() else {
+            return nil
+        }
+        
+        print("Popping \(item.task.currentRequest?.url?.absoluteString ?? "unknown") from stack")
+        stack.removeLast()
+        print("Stack has \(stack.count) item(s)")
+        
+        return item
+    }
+    
+    func peek() -> AssetDownloadItem? {
+        return stack.last
+    }
+    
+    // MARK: - Count
+    
+    var count: Int {
+        return stack.count
     }
 }

@@ -10,7 +10,7 @@ import Foundation
 
 struct GalleryAlbum {
     
-    let thumbnailAsset: Asset
+    let thumbnailAsset: GalleryAsset
     let items: [GalleryItem]
 }
 

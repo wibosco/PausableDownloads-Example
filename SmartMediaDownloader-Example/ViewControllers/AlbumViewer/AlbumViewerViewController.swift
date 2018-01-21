@@ -10,9 +10,13 @@ import UIKit
 
 class AlbumViewerViewController: UIViewController {
 
-    @IBOutlet weak var tableView: UITableView!
+    @IBOutlet weak var assetImageView: UIImageView!
+    @IBOutlet weak var descriptionLabel: UILabel!
+    @IBOutlet weak var loadingActivityIndicator: UIActivityIndicatorView!
     
-    let assetDataManager = AssetDataManager()
+    @IBOutlet weak var tapGstureRecognizer: UITapGestureRecognizer!
+    
+    private let assetDataManager = AssetDataManager()
     
     var galleryItems = [GalleryItem]()
     
@@ -20,48 +24,69 @@ class AlbumViewerViewController: UIViewController {
     
     // MARK: - ViewLifecycle
     
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-
-        tableView.rowHeight = view.frame.height
-        tableView.isScrollEnabled = false
-    }
-}
-
-extension AlbumViewerViewController: UITableViewDataSource {
-    
-    // MARK: - UITableViewDataSource
-    
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return galleryItems.count
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        retrieveAsset()
+        updateTitle()
     }
     
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        guard let cell = tableView.dequeueReusableCell(withIdentifier: GalleryItemTableViewCell.className, for: indexPath) as? GalleryItemTableViewCell else {
-            fatalError("unknown cell type being used") // fail fast
+    // MARK: - Title
+    
+    func updateTitle() {
+        guard let titleView = navigationItem.titleView as? AlbumViewerTitleView else {
+            return
         }
         
-        let galleryItem = galleryItems[indexPath.row]
+        titleView.titleLabel.text = "\(index+1) of \(galleryItems.count)"
         
-        cell.configure(galleryItem: galleryItem)
-        
-        return cell
+        if index+1 == galleryItems.count {
+            titleView.subtitleLabel.text = "Tap to close album"
+        }
     }
-}
-
-extension AlbumViewerViewController: UITableViewDelegate {
     
-    // MARK: - UITableViewDelegate
+    // MARK: - GestureRecognizer
     
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        index = (indexPath.row + 1)
+    @IBAction func didTap(_ sender: Any) {
+        index += 1
         
         if index < galleryItems.count {
-            let nextIndexPath = IndexPath(row: index, section: 0)
-            
-            tableView.scrollToRow(at: nextIndexPath, at: .bottom, animated: false)
+            retrieveAsset()
         } else {
             navigationController?.popViewController(animated: true)
+        }
+        
+        updateTitle()
+    }
+    
+    // MARK: - Reuse
+    
+    func prepareForReuse() {
+        loadingActivityIndicator.startAnimating()
+        assetImageView.image = nil//UIImage(named: "icon-placeholder")
+    }
+    
+    // MARK: - Asset
+    
+    func retrieveAsset() {
+        let galleryItem = galleryItems[index]
+        prepareForReuse()
+        descriptionLabel.text = "\(galleryItem.asset.url.absoluteString)"
+        assetDataManager.loadGalleryItemAsset(galleryItem.asset) { [weak self] (result) in
+            guard let strongSelf = self else {
+                return
+            }
+            switch result {
+            case .success(let (asset, image)):
+                let currentGalleryItem = strongSelf.galleryItems[strongSelf.index]
+                if asset == currentGalleryItem.asset {
+                    strongSelf.loadingActivityIndicator.stopAnimating()
+                    strongSelf.assetImageView.image = image
+                }
+            case .failure(let error):
+                //TODO: Handle
+                print(error)
+            }
         }
     }
 }

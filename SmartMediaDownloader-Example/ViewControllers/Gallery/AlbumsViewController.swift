@@ -11,10 +11,11 @@ import UIKit
 class AlbumsViewController: UIViewController {
     
     @IBOutlet weak var collectionView: UICollectionView!
+    @IBOutlet weak var loadingActivityIndicatorView: UIActivityIndicatorView!
     
     let dataManager = GalleryDataManager()
-    
     var galleryAlbums = [GalleryAlbum]()
+    let fileManager = FileManager.default
     
     // MARK: - Lifecycle
     
@@ -27,7 +28,11 @@ class AlbumsViewController: UIViewController {
     // MARK: - Albums
     
     func retrieveAlbums() {
+        loadingActivityIndicatorView.startAnimating()
+        
         dataManager.retrieveGallery(forSearchTerms: "cats") { (searchTerms, result) in
+            self.loadingActivityIndicatorView.stopAnimating()
+            
             switch result {
             case .success(let galleryAlbums):
                 self.galleryAlbums = galleryAlbums
@@ -51,6 +56,23 @@ class AlbumsViewController: UIViewController {
             
             viewController.galleryItems = galleryAlbums[indexPath.item].items
         }
+    }
+    
+    // MARK: - Reset
+    
+    @IBAction func resetButtonPressed(_ sender: Any) {
+        loadingActivityIndicatorView.startAnimating()
+        
+        for galleryAlbum in galleryAlbums {
+            try? fileManager.removeItem(at: galleryAlbum.thumbnailAsset.cachedLocalAssetURL())
+            for galleryItem in galleryAlbum.items {
+                try? fileManager.removeItem(at: galleryItem.asset.cachedLocalAssetURL())
+            }
+        }
+        
+        galleryAlbums.removeAll()
+        collectionView.reloadData()
+        retrieveAlbums()
     }
 }
 

@@ -11,7 +11,7 @@ import Foundation
 struct GalleryItem {
     
     let title: String
-    let asset: Asset
+    let asset: GalleryAsset
 }
 
 extension GalleryItem: Equatable {}

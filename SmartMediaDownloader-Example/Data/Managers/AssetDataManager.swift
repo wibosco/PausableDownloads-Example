@@ -11,22 +11,32 @@ import UIKit
 
 class AssetDataManager {
     
-    private let assetDownloadManager = AssetDownloadManager()
+    private let assetDownloadManager = AssetDownloadManager.shared
     private let fileManager = FileManager.default
     
     // MARK: - GalleryAlbum
     
-    func loadAsset(_ asset: Asset, completionHandler: @escaping ((_ result: DataRequestResult<(Asset, UIImage)>) -> ())) {
+    func loadAlbumThumbnailAsset(_ asset: GalleryAsset, completionHandler: @escaping ((_ result: DataRequestResult<(GalleryAsset, UIImage)>) -> ())) {
         if fileManager.fileExists(atPath: asset.cachedLocalAssetURL().path) {
             locallyLoadAsset(asset, completionHandler: completionHandler)
         } else {
-            remotelyLoadAsset(asset, completionHandler: completionHandler)
+            remotelyLoadAsset(asset, forceDownload: false, completionHandler: completionHandler)
+        }
+    }
+    
+    // MARK: - GalleryItem
+    
+    func loadGalleryItemAsset(_ asset: GalleryAsset, completionHandler: @escaping ((_ result: DataRequestResult<(GalleryAsset, UIImage)>) -> ())) {
+        if fileManager.fileExists(atPath: asset.cachedLocalAssetURL().path) {
+            locallyLoadAsset(asset, completionHandler: completionHandler)
+        } else {
+            remotelyLoadAsset(asset, forceDownload: true, completionHandler: completionHandler)
         }
     }
     
     // MARK: - Asset
     
-    private func locallyLoadAsset(_ asset: Asset, completionHandler: @escaping ((_ result: DataRequestResult<(Asset, UIImage)>) -> ())) {
+    private func locallyLoadAsset(_ asset: GalleryAsset, completionHandler: @escaping ((_ result: DataRequestResult<(GalleryAsset, UIImage)>) -> ())) {
         do {
             let data = try Data(contentsOf: URL(fileURLWithPath: asset.cachedLocalAssetURL().path))
             
@@ -35,19 +45,19 @@ class AssetDataManager {
                 return
             }
             
-            let imageResult = DataRequestResult<(Asset, UIImage)>.success((asset, image))
+            let imageResult = DataRequestResult<(GalleryAsset, UIImage)>.success((asset, image))
             
             DispatchQueue.main.async {
                 completionHandler(imageResult)
             }
         } catch {
-            remotelyLoadAsset(asset, completionHandler: completionHandler)
+            remotelyLoadAsset(asset, forceDownload: false, completionHandler: completionHandler)
         }
     }
     
-    private func remotelyLoadAsset(_ asset: Asset, completionHandler: @escaping ((_ result: DataRequestResult<(Asset, UIImage)>) -> ())) {
+    private func remotelyLoadAsset(_ asset: GalleryAsset, forceDownload: Bool, completionHandler: @escaping ((_ result: DataRequestResult<(GalleryAsset, UIImage)>) -> ())) {
     
-        assetDownloadManager.scheduleDownload(url: asset.url) { (result) in
+        assetDownloadManager.scheduleDownload(url: asset.url, force: forceDownload) { (result) in
             switch result {
             case .success(let data):
                 guard let image = UIImage(data: data) else {
@@ -61,7 +71,7 @@ class AssetDataManager {
                     //TODO: Handler
                 }
                 
-                let imageResult = DataRequestResult<(Asset, UIImage)>.success((asset, image))
+                let imageResult = DataRequestResult<(GalleryAsset, UIImage)>.success((asset, image))
                 
                 DispatchQueue.main.async {
                     completionHandler(imageResult)

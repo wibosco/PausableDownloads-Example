@@ -17,16 +17,22 @@ class AssetDownloadManager: NSObject {
         return session
     }()
     
-    private let waitingStack = AssetDownloadStack()
+    private var waitingStack = AssetDownloadStack()
     private var executingQueue = [AssetDownloadItem]()
     
-    let maximumConcurrentDownloads: Int
+    private static let maximumConcurrentDownloadsResetValue = 4
     
-    // MARK: - Init
-    
-    init(maximumConcurrentDownloads: Int = 1) {
-        self.maximumConcurrentDownloads = maximumConcurrentDownloads
+    var maximumConcurrentDownloads = AssetDownloadManager.maximumConcurrentDownloadsResetValue {
+        didSet {
+            if maximumConcurrentDownloads != oldValue {
+                print("set maximum concurrent downloads to \(maximumConcurrentDownloads)")
+            }
+        }
     }
+    
+    // MARK: - Singleton
+    
+    static let shared = AssetDownloadManager()
     
     // MARK: - Download
     
@@ -38,23 +44,23 @@ class AssetDownloadManager: NSObject {
         let downloadTask = urlSession.downloadTask(with: url)
         let assetDownloadItem = AssetDownloadItem(task: downloadTask)
         assetDownloadItem.completionHandler = completionHandler
+        assetDownloadItem.forcedDownload = force
         
         waitingStack.push(assetDownloadItem: assetDownloadItem, forceDownload: false)
         
         resumeDownloads()
     }
     
-    func scheduleDownload(url: URL, completionHandler: @escaping AssetDownloadItemCompletionHandler) {
-        download(url: url, force: false, completionHandler: completionHandler)
-    }
-    
-    func forceDownload(url: URL, completionHandler: @escaping AssetDownloadItemCompletionHandler) {
-        download(url: url, force: true, completionHandler: completionHandler)
+    func scheduleDownload(url: URL, force: Bool, completionHandler: @escaping AssetDownloadItemCompletionHandler) {
+        print("\(url.absoluteString) has force value: \(force)")
+        download(url: url, force: force, completionHandler: completionHandler)
     }
     
     // MARK: - Download
     
     private func pauseDownloads() {
+        print("going to pause executing downloads: \(executingQueue.count) and add them to already waiting stack: \(waitingStack.count)")
+        
         for downloadTask in executingQueue.reversed() {
             downloadTask.pause()
             waitingStack.push(assetDownloadItem: downloadTask)
@@ -64,13 +70,29 @@ class AssetDownloadManager: NSObject {
     }
     
     private func resumeDownloads() {
-        for _ in 0..<maximumConcurrentDownloads {
+        updatedConcurrentDownloadLimitIfNeeded()
+        
+        for _ in executingQueue.count..<maximumConcurrentDownloads {
             guard let assetDownloadItem = waitingStack.pop() else {
                 return
             }
             
             executingQueue.append(assetDownloadItem)
+            print("executing queue has \(executingQueue.count) item(s)")
             assetDownloadItem.resume()
+        }
+    }
+    
+    func updatedConcurrentDownloadLimitIfNeeded() {
+        guard let assetDownloadItem = waitingStack.peek() else {
+            maximumConcurrentDownloads = AssetDownloadManager.maximumConcurrentDownloadsResetValue
+            return
+        }
+        
+        if assetDownloadItem.forcedDownload {
+            maximumConcurrentDownloads = 1
+        } else {
+            maximumConcurrentDownloads = AssetDownloadManager.maximumConcurrentDownloadsResetValue
         }
     }
     
@@ -92,10 +114,17 @@ extension AssetDownloadManager: URLSessionDownloadDelegate {
     // MARK: - URLSessionDownloadDelegate
     
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        guard let executingAssetDownloadItem = executingAssetDownloadItem(for: downloadTask)  else {
+        maximumConcurrentDownloads = AssetDownloadManager.maximumConcurrentDownloadsResetValue
+        
+        guard let executingAssetDownloadItem = executingAssetDownloadItem(for: downloadTask), let index = self.executingQueue.index(of: executingAssetDownloadItem)  else {
             return
         }
-            
+        
+        self.executingQueue.remove(at: index)
+        self.resumeDownloads()
+        
+        print("completed download of \(executingAssetDownloadItem.task.currentRequest?.url?.absoluteString ?? "unknown")")
+        
         do {
             let data = try Data(contentsOf: location)
             
@@ -106,6 +135,14 @@ extension AssetDownloadManager: URLSessionDownloadDelegate {
     }
     
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+        guard let executingAssetDownloadItem = executingAssetDownloadItem(for: downloadTask)  else {
+            return
+        }
+        
+        let percentageComplete = Double(totalBytesWritten)/Double(totalBytesExpectedToWrite)
+        
+        print("downloading \(executingAssetDownloadItem.task.currentRequest?.url?.absoluteString ?? "unknown") percentage complete: \(percentageComplete)")
+        
         //TODO: Trigger callback
     }
     

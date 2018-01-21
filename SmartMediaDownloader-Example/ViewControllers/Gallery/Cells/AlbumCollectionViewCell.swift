@@ -29,7 +29,7 @@ class AlbumCollectionViewCell: UICollectionViewCell {
         
         albumItemsCountLabel.text = "Photos in album: \(galleryAlbum.items.count)"
         
-        assetDataManager.loadAsset(galleryAlbum.thumbnailAsset) { [weak self] (result) in
+        assetDataManager.loadAlbumThumbnailAsset(galleryAlbum.thumbnailAsset) { [weak self] (result) in
             switch result {
             case .success(let (asset, image)):
                 if asset == galleryAlbum.thumbnailAsset {

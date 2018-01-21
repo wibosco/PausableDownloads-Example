@@ -7,7 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		3D2E5D58201016F1007403B5 /* Asset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D2E5D57201016F1007403B5 /* Asset.swift */; };
+		3D2BA8FD2013AFC50037B4E2 /* AlbumViewerTitleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D2BA8FC2013AFC50037B4E2 /* AlbumViewerTitleView.swift */; };
+		3D2E5D58201016F1007403B5 /* GalleryAsset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D2E5D57201016F1007403B5 /* GalleryAsset.swift */; };
 		3D765DB820029E800014757C /* GalleryDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D765DB720029E800014757C /* GalleryDataManager.swift */; };
 		3D765DBA20029F020014757C /* GalleryItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D765DB920029F020014757C /* GalleryItem.swift */; };
 		3D765DC020029F930014757C /* RequestConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D765DBD20029F930014757C /* RequestConfig.swift */; };
@@ -23,7 +24,6 @@
 		3DE0800F1FFF10A6003C95C0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3DE080071FFF10A6003C95C0 /* Assets.xcassets */; };
 		3DF29893200AD9FF000EE68C /* URLRequest+HTTPBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DF29892200AD9FF000EE68C /* URLRequest+HTTPBody.swift */; };
 		3DF2989A200D6ECA000EE68C /* AssetDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DF29899200D6ECA000EE68C /* AssetDataManager.swift */; };
-		3DF298AE200FE670000EE68C /* GalleryItemTableViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DF298AA200FE66F000EE68C /* GalleryItemTableViewCell.swift */; };
 		3DF298AF200FE670000EE68C /* AlbumViewerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DF298AB200FE66F000EE68C /* AlbumViewerViewController.swift */; };
 		3DF298B1200FE681000EE68C /* AlbumsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DF298B0200FE681000EE68C /* AlbumsViewController.swift */; };
 		3DF298B4200FE73D000EE68C /* AlbumCollectionViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DF298B3200FE73D000EE68C /* AlbumCollectionViewCell.swift */; };
@@ -44,7 +44,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		3D2E5D57201016F1007403B5 /* Asset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Asset.swift; sourceTree = "<group>"; };
+		3D2BA8FC2013AFC50037B4E2 /* AlbumViewerTitleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumViewerTitleView.swift; sourceTree = "<group>"; };
+		3D2E5D57201016F1007403B5 /* GalleryAsset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalleryAsset.swift; sourceTree = "<group>"; };
 		3D765DB720029E800014757C /* GalleryDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalleryDataManager.swift; sourceTree = "<group>"; };
 		3D765DB920029F020014757C /* GalleryItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalleryItem.swift; sourceTree = "<group>"; };
 		3D765DBD20029F930014757C /* RequestConfig.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RequestConfig.swift; sourceTree = "<group>"; };
@@ -64,7 +65,6 @@
 		3DE080071FFF10A6003C95C0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		3DF29892200AD9FF000EE68C /* URLRequest+HTTPBody.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URLRequest+HTTPBody.swift"; sourceTree = "<group>"; };
 		3DF29899200D6ECA000EE68C /* AssetDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetDataManager.swift; sourceTree = "<group>"; };
-		3DF298AA200FE66F000EE68C /* GalleryItemTableViewCell.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = GalleryItemTableViewCell.swift; sourceTree = "<group>"; };
 		3DF298AB200FE66F000EE68C /* AlbumViewerViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AlbumViewerViewController.swift; sourceTree = "<group>"; };
 		3DF298B0200FE681000EE68C /* AlbumsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumsViewController.swift; sourceTree = "<group>"; };
 		3DF298B3200FE73D000EE68C /* AlbumCollectionViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumCollectionViewCell.swift; sourceTree = "<group>"; };
@@ -253,7 +253,7 @@
 			children = (
 				3D765DB920029F020014757C /* GalleryItem.swift */,
 				3DF298BC200FE7F8000EE68C /* GalleryAlbum.swift */,
-				3D2E5D57201016F1007403B5 /* Asset.swift */,
+				3D2E5D57201016F1007403B5 /* GalleryAsset.swift */,
 			);
 			path = Model;
 			sourceTree = "<group>";
@@ -261,18 +261,10 @@
 		3DF298A5200FE66F000EE68C /* AlbumViewer */ = {
 			isa = PBXGroup;
 			children = (
-				3DF298A6200FE66F000EE68C /* Cells */,
 				3DF298AB200FE66F000EE68C /* AlbumViewerViewController.swift */,
+				3D2BA8FC2013AFC50037B4E2 /* AlbumViewerTitleView.swift */,
 			);
 			path = AlbumViewer;
-			sourceTree = "<group>";
-		};
-		3DF298A6200FE66F000EE68C /* Cells */ = {
-			isa = PBXGroup;
-			children = (
-				3DF298AA200FE66F000EE68C /* GalleryItemTableViewCell.swift */,
-			);
-			path = Cells;
 			sourceTree = "<group>";
 		};
 		3DF298AC200FE670000EE68C /* Gallery */ = {
@@ -407,7 +399,7 @@
 			files = (
 				3DF298B4200FE73D000EE68C /* AlbumCollectionViewCell.swift in Sources */,
 				3DF298B9200FE7AC000EE68C /* AssetDownloadStack.swift in Sources */,
-				3D2E5D58201016F1007403B5 /* Asset.swift in Sources */,
+				3D2E5D58201016F1007403B5 /* GalleryAsset.swift in Sources */,
 				3DF2989A200D6ECA000EE68C /* AssetDataManager.swift in Sources */,
 				3D765DC120029F930014757C /* URLRequestFactory.swift in Sources */,
 				3DF29893200AD9FF000EE68C /* URLRequest+HTTPBody.swift in Sources */,
@@ -417,7 +409,7 @@
 				3D765DBA20029F020014757C /* GalleryItem.swift in Sources */,
 				3D765DC92002CCBE0014757C /* Parser.swift in Sources */,
 				3DF298AF200FE670000EE68C /* AlbumViewerViewController.swift in Sources */,
-				3DF298AE200FE670000EE68C /* GalleryItemTableViewCell.swift in Sources */,
+				3D2BA8FD2013AFC50037B4E2 /* AlbumViewerTitleView.swift in Sources */,
 				3DF298BD200FE7F8000EE68C /* GalleryAlbum.swift in Sources */,
 				3D765DC020029F930014757C /* RequestConfig.swift in Sources */,
 				3DF298BB200FE7AC000EE68C /* AssetDownloadItem.swift in Sources */,

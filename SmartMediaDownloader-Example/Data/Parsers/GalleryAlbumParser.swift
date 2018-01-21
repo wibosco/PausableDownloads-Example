@@ -24,7 +24,7 @@ class GalleryAlbumParser: Parser<[GalleryAlbum]> {
                 if galleryItems.count > 0 {
                     let galleryItem = galleryItems[0]
                     let galleryAlbumThumbnailURL = generateThumbnailURL(from: galleryItem)
-                    let thumbnailAsset = Asset(id: fileName(forURL: galleryAlbumThumbnailURL), url: galleryAlbumThumbnailURL)
+                    let thumbnailAsset = GalleryAsset(id: fileName(forURL: galleryAlbumThumbnailURL), url: galleryAlbumThumbnailURL)
                     
                     let galleryAlbum = GalleryAlbum(thumbnailAsset: thumbnailAsset, items: galleryItems)
                     
@@ -56,7 +56,7 @@ class GalleryAlbumParser: Parser<[GalleryAlbum]> {
                 return nil
         }
         
-        let asset = Asset(id: fileName(forURL: imageURL), url: imageURL)
+        let asset = GalleryAsset(id: fileName(forURL: imageURL), url: imageURL)
                 
         return [GalleryItem(title: itemTitle, asset: asset)]
     }
@@ -79,7 +79,7 @@ class GalleryAlbumParser: Parser<[GalleryAlbum]> {
                         title = imageTitle
                     }
                     
-                    let asset = Asset(id: fileName(forURL: linkURL), url: linkURL)
+                    let asset = GalleryAsset(id: fileName(forURL: linkURL), url: linkURL)
 
                     let galleryItem = GalleryItem(title: title, asset: asset)
                     galleryItems.append(galleryItem)

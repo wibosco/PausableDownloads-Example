@@ -1,5 +1,5 @@
 //
-//  Asset.swift
+//  GalleryAsset.swift
 //  SmartMediaDownloader-Example
 //
 //  Created by William Boles on 17/01/2018.
@@ -8,7 +8,7 @@
 
 import Foundation
 
-struct Asset {
+struct GalleryAsset {
     
     let id: String
     let url: URL
@@ -23,9 +23,9 @@ struct Asset {
     
 }
 
-extension Asset: Equatable {}
+extension GalleryAsset: Equatable {}
 
-func ==(lhs: Asset, rhs: Asset) -> Bool {
+func ==(lhs: GalleryAsset, rhs: GalleryAsset) -> Bool {
     return lhs.id == rhs.id &&
         lhs.url == rhs.url
 }
