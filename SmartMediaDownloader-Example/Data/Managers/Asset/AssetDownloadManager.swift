@@ -51,8 +51,10 @@ class AssetDownloadManager: NSObject {
         
         if let (_, assetDownloadItem) = searchForDownloadingAssetDownloadItem(withURL: url) {
             coalesceSameURLAssetDownloads(assetDownloadItem: assetDownloadItem, forceDownload: forceDownload, completionHandler: completionHandler)
-        } else if let (_, assetDownloadItem) = searchForWaitingAssetDownloadItem(withURL: url) {
+        } else if let (index, assetDownloadItem) = searchForWaitingAssetDownloadItem(withURL: url) {
             coalesceSameURLAssetDownloads(assetDownloadItem: assetDownloadItem, forceDownload: forceDownload, completionHandler: completionHandler)
+            waiting.remove(at: index)
+            waiting.append(assetDownloadItem) // Move download item to the front of the waiting stack
         } else if let (index, assetDownloadItem) = searchForCanceledAssetDownloadItem(withURL: url) {
             assetDownloadItem.completionHandler = completionHandler
             assetDownloadItem.forceDownload = forceDownload
@@ -73,7 +75,7 @@ class AssetDownloadManager: NSObject {
     
     private func coalesceSameURLAssetDownloads(assetDownloadItem: AssetDownloadItem, forceDownload: Bool, completionHandler: @escaping AssetDownloadItemCompletionHandler) {
         assetDownloadItem.coalesce(completionHandler)
-        if forceDownload {
+        if forceDownload { //Only care about upgrading forced value
             assetDownloadItem.forceDownload = forceDownload
         }
     }
