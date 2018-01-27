@@ -45,7 +45,7 @@ class AssetDataManager {
             let data = try Data(contentsOf: URL(fileURLWithPath: asset.cachedLocalAssetURL().path))
             
             guard let image = UIImage(data: data) else {
-                //TODO: Handler
+                completionHandler(.failure(APIError.invalidData))
                 return
             }
             
@@ -61,18 +61,18 @@ class AssetDataManager {
     
     private func remotelyLoadAsset(_ asset: GalleryAsset, forceDownload: Bool, completionHandler: @escaping ((_ result: DataRequestResult<(GalleryAsset, UIImage)>) -> ())) {
     
-        assetDownloadManager.scheduleDownload(url: asset.url, force: forceDownload) { (result) in
+        assetDownloadManager.scheduleDownload(url: asset.url, forceDownload: forceDownload) { (result) in
             switch result {
             case .success(let data):
                 guard let image = UIImage(data: data) else {
-                    //TODO: Handler
+                    completionHandler(.failure(APIError.invalidData))
                     return
                 }
                 
                 do {
                     try data.write(to: asset.cachedLocalAssetURL(), options: .atomic)
                 } catch {
-                    //TODO: Handler
+                    completionHandler(.failure(APIError.invalidData))
                 }
                 
                 let imageResult = DataRequestResult<(GalleryAsset, UIImage)>.success((asset, image))
@@ -81,8 +81,7 @@ class AssetDataManager {
                     completionHandler(imageResult)
                 }
             case .failure(let error):
-                //TODO: Handler
-                print("\(error)")
+                completionHandler(.failure(error))
             }
         }
     }

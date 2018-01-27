@@ -10,14 +10,21 @@ import Foundation
 
 typealias AssetDownloadItemCompletionHandler = ((_ result: DataRequestResult<Data>) -> Void)
 
+enum Status: String {
+    case waiting
+    case downloading
+    case canceled
+}
+
 class AssetDownloadItem {
     
     fileprivate let task: URLSessionDownloadTask
     
     var completionHandler: AssetDownloadItemCompletionHandler?
     
-    var forcedDownload = false
-    var downloadedPercentage = 0.0
+    var forceDownload = false
+    var downloadPercentageComplete = 0.0
+    var status = Status.waiting
     
     // MARK: - Init
     
@@ -28,15 +35,25 @@ class AssetDownloadItem {
     // MARK: - Lifecycle
     
     func pause() {
-        forcedDownload = false
+        status = .waiting
+        forceDownload = false
         task.suspend()
     }
     
     func resume() {
+        status = .downloading
         task.resume()
     }
     
-    func cancel() {
+    func softCancel() {
+        status = .canceled
+        forceDownload = false
+        task.suspend()
+    }
+    
+    func hardCancel() {
+        status = .canceled
+        forceDownload = false
         task.cancel()
     }
     
@@ -45,12 +62,25 @@ class AssetDownloadItem {
     var url: URL {
         return task.currentRequest!.url!
     }
+    
+    //MARK: - Coalesce
+    
+    func coalesce(_ additionalCompletionHandler: @escaping AssetDownloadItemCompletionHandler) {
+        let initalCompletionHandler = completionHandler
+        
+        completionHandler = { (result) in
+            if let initalCompletionClosure = initalCompletionHandler {
+                initalCompletionClosure(result)
+            }
+            
+            additionalCompletionHandler(result)
+        }
+    }
 }
 
 extension AssetDownloadItem: Equatable {}
 
 func ==(lhs: AssetDownloadItem, rhs: AssetDownloadItem) -> Bool {
-    return lhs.task == rhs.task &&
-        lhs.forcedDownload == lhs.forcedDownload
+    return lhs.url == rhs.url
 }
 
