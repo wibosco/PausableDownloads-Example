@@ -17,12 +17,12 @@ class AssetDownloadManager: NSObject {
         return session
     }()
     
-    private var waitingStack = AssetDownloadStack()
+    private var waitingStack = Stack<AssetDownloadItem>()
     private var currentlyDownloadingItems = [AssetDownloadItem]()
     
     private static let maximumConcurrentDownloadsResetValue = 4
     
-    var maximumConcurrentDownloads = AssetDownloadManager.maximumConcurrentDownloadsResetValue
+    private var maximumConcurrentDownloads = AssetDownloadManager.maximumConcurrentDownloadsResetValue
         
     // MARK: - Singleton
     
@@ -73,13 +73,13 @@ class AssetDownloadManager: NSObject {
         generateReport()
     }
     
-    func updatedConcurrentDownloadLimitIfNeeded() {
+    private func updatedConcurrentDownloadLimitIfNeeded() {
         guard currentlyDownloadingItems.first?.forcedDownload == false else {
             maximumConcurrentDownloads = 1
             return
         }
         
-        guard let assetDownloadItem = waitingStack.peek() else {
+        guard let assetDownloadItem = waitingStack.peek else {
             maximumConcurrentDownloads = AssetDownloadManager.maximumConcurrentDownloadsResetValue
             return
         }
@@ -118,9 +118,9 @@ class AssetDownloadManager: NSObject {
     
     // MARK: - Executing
     
-    func executingAssetDownloadItem(for downloadTask: URLSessionTask) -> AssetDownloadItem? {
+    fileprivate func executingAssetDownloadItem(for downloadTask: URLSessionTask) -> AssetDownloadItem? {
         for assetDownloadItem in currentlyDownloadingItems {
-            if assetDownloadItem.task == downloadTask {
+            if assetDownloadItem.url == downloadTask.currentRequest?.url {
                 return assetDownloadItem
             }
         }

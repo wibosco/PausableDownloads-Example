@@ -12,7 +12,7 @@ typealias AssetDownloadItemCompletionHandler = ((_ result: DataRequestResult<Dat
 
 class AssetDownloadItem {
     
-    let task: URLSessionDownloadTask
+    fileprivate let task: URLSessionDownloadTask
     
     var completionHandler: AssetDownloadItemCompletionHandler?
     

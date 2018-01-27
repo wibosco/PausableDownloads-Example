@@ -22,12 +22,12 @@
 		3DE0800C1FFF10A6003C95C0 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3DE080001FFF10A6003C95C0 /* Main.storyboard */; };
 		3DE0800D1FFF10A6003C95C0 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DE080031FFF10A6003C95C0 /* AppDelegate.swift */; };
 		3DE0800F1FFF10A6003C95C0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3DE080071FFF10A6003C95C0 /* Assets.xcassets */; };
+		3DE246F7201D16BD00010FCA /* Swift.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DE246F6201D16BD00010FCA /* Swift.swift */; };
 		3DF29893200AD9FF000EE68C /* URLRequest+HTTPBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DF29892200AD9FF000EE68C /* URLRequest+HTTPBody.swift */; };
 		3DF2989A200D6ECA000EE68C /* AssetDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DF29899200D6ECA000EE68C /* AssetDataManager.swift */; };
 		3DF298AF200FE670000EE68C /* AlbumViewerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DF298AB200FE66F000EE68C /* AlbumViewerViewController.swift */; };
 		3DF298B1200FE681000EE68C /* AlbumsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DF298B0200FE681000EE68C /* AlbumsViewController.swift */; };
 		3DF298B4200FE73D000EE68C /* AlbumCollectionViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DF298B3200FE73D000EE68C /* AlbumCollectionViewCell.swift */; };
-		3DF298B9200FE7AC000EE68C /* AssetDownloadStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DF298B6200FE7AC000EE68C /* AssetDownloadStack.swift */; };
 		3DF298BA200FE7AC000EE68C /* AssetDownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DF298B7200FE7AC000EE68C /* AssetDownloadManager.swift */; };
 		3DF298BB200FE7AC000EE68C /* AssetDownloadItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DF298B8200FE7AC000EE68C /* AssetDownloadItem.swift */; };
 		3DF298BD200FE7F8000EE68C /* GalleryAlbum.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DF298BC200FE7F8000EE68C /* GalleryAlbum.swift */; };
@@ -63,12 +63,12 @@
 		3DE080031FFF10A6003C95C0 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		3DE080041FFF10A6003C95C0 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		3DE080071FFF10A6003C95C0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		3DE246F6201D16BD00010FCA /* Swift.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Swift.swift; sourceTree = "<group>"; };
 		3DF29892200AD9FF000EE68C /* URLRequest+HTTPBody.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URLRequest+HTTPBody.swift"; sourceTree = "<group>"; };
 		3DF29899200D6ECA000EE68C /* AssetDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetDataManager.swift; sourceTree = "<group>"; };
 		3DF298AB200FE66F000EE68C /* AlbumViewerViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AlbumViewerViewController.swift; sourceTree = "<group>"; };
 		3DF298B0200FE681000EE68C /* AlbumsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumsViewController.swift; sourceTree = "<group>"; };
 		3DF298B3200FE73D000EE68C /* AlbumCollectionViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumCollectionViewCell.swift; sourceTree = "<group>"; };
-		3DF298B6200FE7AC000EE68C /* AssetDownloadStack.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AssetDownloadStack.swift; sourceTree = "<group>"; };
 		3DF298B7200FE7AC000EE68C /* AssetDownloadManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AssetDownloadManager.swift; sourceTree = "<group>"; };
 		3DF298B8200FE7AC000EE68C /* AssetDownloadItem.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AssetDownloadItem.swift; sourceTree = "<group>"; };
 		3DF298BC200FE7F8000EE68C /* GalleryAlbum.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalleryAlbum.swift; sourceTree = "<group>"; };
@@ -230,6 +230,7 @@
 		3DE080101FFF1129003C95C0 /* Data */ = {
 			isa = PBXGroup;
 			children = (
+				3DE246F5201D16AF00010FCA /* ADTs */,
 				3DE080111FFF1161003C95C0 /* Managers */,
 				3DE080121FFF1161003C95C0 /* Model */,
 				3D765DC52002CC9A0014757C /* Parsers */,
@@ -256,6 +257,14 @@
 				3D2E5D57201016F1007403B5 /* GalleryAsset.swift */,
 			);
 			path = Model;
+			sourceTree = "<group>";
+		};
+		3DE246F5201D16AF00010FCA /* ADTs */ = {
+			isa = PBXGroup;
+			children = (
+				3DE246F6201D16BD00010FCA /* Swift.swift */,
+			);
+			path = ADTs;
 			sourceTree = "<group>";
 		};
 		3DF298A5200FE66F000EE68C /* AlbumViewer */ = {
@@ -289,7 +298,6 @@
 			children = (
 				3DF298B8200FE7AC000EE68C /* AssetDownloadItem.swift */,
 				3DF298B7200FE7AC000EE68C /* AssetDownloadManager.swift */,
-				3DF298B6200FE7AC000EE68C /* AssetDownloadStack.swift */,
 			);
 			path = Asset;
 			sourceTree = "<group>";
@@ -398,7 +406,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				3DF298B4200FE73D000EE68C /* AlbumCollectionViewCell.swift in Sources */,
-				3DF298B9200FE7AC000EE68C /* AssetDownloadStack.swift in Sources */,
 				3D2E5D58201016F1007403B5 /* GalleryAsset.swift in Sources */,
 				3DF2989A200D6ECA000EE68C /* AssetDataManager.swift in Sources */,
 				3D765DC120029F930014757C /* URLRequestFactory.swift in Sources */,
@@ -416,6 +423,7 @@
 				3D765DB820029E800014757C /* GalleryDataManager.swift in Sources */,
 				3DF298B1200FE681000EE68C /* AlbumsViewController.swift in Sources */,
 				3D765DD12002D1910014757C /* NSObject+Name.swift in Sources */,
+				3DE246F7201D16BD00010FCA /* Swift.swift in Sources */,
 				3D765DCA2002CCBE0014757C /* GalleryAlbumParser.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
