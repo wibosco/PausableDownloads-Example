@@ -14,9 +14,9 @@ struct GalleryItem {
     let asset: GalleryAsset
 }
 
-extension GalleryItem: Equatable {}
-
-func ==(lhs: GalleryItem, rhs: GalleryItem) -> Bool {
-    return lhs.title == rhs.title &&
-        lhs.asset == rhs.asset
+extension GalleryItem: Equatable {
+    static func ==(lhs: GalleryItem, rhs: GalleryItem) -> Bool {
+        return lhs.title == rhs.title &&
+            lhs.asset == rhs.asset
+    }
 }

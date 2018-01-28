@@ -78,9 +78,9 @@ class AssetDownloadItem {
     }
 }
 
-extension AssetDownloadItem: Equatable {}
-
-func ==(lhs: AssetDownloadItem, rhs: AssetDownloadItem) -> Bool {
-    return lhs.url == rhs.url
+extension AssetDownloadItem: Equatable {
+    static func ==(lhs: AssetDownloadItem, rhs: AssetDownloadItem) -> Bool {
+        return lhs.url == rhs.url
+    }
 }
 

@@ -32,9 +32,9 @@ class AlbumCollectionViewCell: UICollectionViewCell {
         
         assetDataManager.loadAlbumThumbnailAsset(galleryAlbum.thumbnailAsset) { [weak self] (result) in
             switch result {
-            case .success(let (asset, image)):
-                if asset == self?.thumbnailAsset {
-                    self?.thumbnailImageView.image = image
+            case .success(let loadResult):
+                if loadResult.asset == self?.thumbnailAsset {
+                    self?.thumbnailImageView.image = loadResult.image
                 }
             case .failure(let error):
                 //TODO: Handle

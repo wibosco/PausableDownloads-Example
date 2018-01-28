@@ -82,11 +82,11 @@ class AlbumViewerViewController: UIViewController {
             }
             
             switch result {
-            case .success(let (asset, image)):
+            case .success(let loadResult):
                 let currentGalleryItem = strongSelf.galleryItems[strongSelf.index]
-                if asset == currentGalleryItem.asset {
+                if loadResult.asset == currentGalleryItem.asset {
                     strongSelf.loadingActivityIndicator.stopAnimating()
-                    strongSelf.assetImageView.image = image
+                    strongSelf.assetImageView.image = loadResult.image
                 }
             case .failure(let error):
                 //TODO: Handle

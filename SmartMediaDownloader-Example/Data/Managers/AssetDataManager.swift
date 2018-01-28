@@ -9,6 +9,18 @@
 import Foundation
 import UIKit
 
+struct LoadAssetResult {
+    let asset: GalleryAsset
+    let image: UIImage
+}
+
+extension LoadAssetResult: Equatable {
+    static func ==(lhs: LoadAssetResult, rhs: LoadAssetResult) -> Bool {
+        return lhs.asset == rhs.asset &&
+            lhs.image == rhs.image
+    }
+}
+
 class AssetDataManager {
     
     private let assetDownloadManager = AssetDownloadManager.shared
@@ -16,7 +28,7 @@ class AssetDataManager {
     
     // MARK: - GalleryAlbum
     
-    func loadAlbumThumbnailAsset(_ asset: GalleryAsset, completionHandler: @escaping ((_ result: DataRequestResult<(GalleryAsset, UIImage)>) -> ())) {
+    func loadAlbumThumbnailAsset(_ asset: GalleryAsset, completionHandler: @escaping ((_ result: DataRequestResult<LoadAssetResult>) -> ())) {
         if fileManager.fileExists(atPath: asset.cachedLocalAssetURL().path) {
             locallyLoadAsset(asset, completionHandler: completionHandler)
         } else {
@@ -26,7 +38,7 @@ class AssetDataManager {
     
     // MARK: - GalleryItem
     
-    func loadGalleryItemAsset(_ asset: GalleryAsset, completionHandler: @escaping ((_ result: DataRequestResult<(GalleryAsset, UIImage)>) -> ())) {
+    func loadGalleryItemAsset(_ asset: GalleryAsset, completionHandler: @escaping ((_ result: DataRequestResult<LoadAssetResult>) -> ())) {
         if fileManager.fileExists(atPath: asset.cachedLocalAssetURL().path) {
             locallyLoadAsset(asset, completionHandler: completionHandler)
         } else {
@@ -40,7 +52,7 @@ class AssetDataManager {
     
     // MARK: - Asset
     
-    private func locallyLoadAsset(_ asset: GalleryAsset, completionHandler: @escaping ((_ result: DataRequestResult<(GalleryAsset, UIImage)>) -> ())) {
+    private func locallyLoadAsset(_ asset: GalleryAsset, completionHandler: @escaping ((_ result: DataRequestResult<LoadAssetResult>) -> ())) {
         do {
             let data = try Data(contentsOf: URL(fileURLWithPath: asset.cachedLocalAssetURL().path))
             
@@ -49,18 +61,19 @@ class AssetDataManager {
                 return
             }
             
-            let imageResult = DataRequestResult<(GalleryAsset, UIImage)>.success((asset, image))
+            let loadResult = LoadAssetResult(asset: asset, image: image)
+            let dataRequestResult = DataRequestResult<LoadAssetResult>.success(loadResult)
             
             DispatchQueue.main.async {
-                completionHandler(imageResult)
+                completionHandler(dataRequestResult)
             }
         } catch {
             remotelyLoadAsset(asset, forceDownload: false, completionHandler: completionHandler)
         }
     }
     
-    private func remotelyLoadAsset(_ asset: GalleryAsset, forceDownload: Bool, completionHandler: @escaping ((_ result: DataRequestResult<(GalleryAsset, UIImage)>) -> ())) {
-    
+    private func remotelyLoadAsset(_ asset: GalleryAsset, forceDownload: Bool, completionHandler: @escaping ((_ result: DataRequestResult<LoadAssetResult>) -> ())) {
+        
         assetDownloadManager.scheduleDownload(url: asset.url, forceDownload: forceDownload) { (result) in
             switch result {
             case .success(let data):
@@ -75,10 +88,11 @@ class AssetDataManager {
                     completionHandler(.failure(APIError.invalidData))
                 }
                 
-                let imageResult = DataRequestResult<(GalleryAsset, UIImage)>.success((asset, image))
+                let loadResult = LoadAssetResult(asset: asset, image: image)
+                let dataRequestResult = DataRequestResult<LoadAssetResult>.success(loadResult)
                 
                 DispatchQueue.main.async {
-                    completionHandler(imageResult)
+                    completionHandler(dataRequestResult)
                 }
             case .failure(let error):
                 completionHandler(.failure(error))

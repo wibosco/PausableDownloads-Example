@@ -23,9 +23,11 @@ struct GalleryAsset {
     
 }
 
-extension GalleryAsset: Equatable {}
-
-func ==(lhs: GalleryAsset, rhs: GalleryAsset) -> Bool {
-    return lhs.id == rhs.id &&
-        lhs.url == rhs.url
+extension GalleryAsset: Equatable {
+    static func ==(lhs: GalleryAsset, rhs: GalleryAsset) -> Bool {
+        return lhs.id == rhs.id &&
+            lhs.url == rhs.url
+    }
 }
+
+

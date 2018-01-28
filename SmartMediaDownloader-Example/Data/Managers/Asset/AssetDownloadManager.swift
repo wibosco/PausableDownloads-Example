@@ -19,27 +19,33 @@ class AssetDownloadManager: NSObject {
     
     private var waiting = [AssetDownloadItem]()
     private var downloading = [AssetDownloadItem]()
-    private var canceled = [AssetDownloadItem]()
+    var canceled = [AssetDownloadItem]()
     
-    private static let maximumConcurrentDownloadsResetValue = 4
+    private static let maximumConcurrentDownloadsResetValue = Int.max
     
-    private var maximumConcurrentDownloads = AssetDownloadManager.maximumConcurrentDownloadsResetValue
-        
+    var maximumConcurrentDownloads = AssetDownloadManager.maximumConcurrentDownloadsResetValue
+
     // MARK: - Singleton
     
     static let shared = AssetDownloadManager()
     
     // MARK: - Init
     
-    override init() {
+    init(notificationCenter: NotificationCenter = NotificationCenter.default) {
         super.init()
-        NotificationCenter.default.addObserver(forName: Notification.Name.UIApplicationDidReceiveMemoryWarning, object: nil, queue: OperationQueue.main) {_ in
+        notificationCenter.addObserver(forName: Notification.Name.UIApplicationDidReceiveMemoryWarning, object: nil, queue: OperationQueue.main) {_ in
             for downloadAssetItem in self.canceled {
                 downloadAssetItem.hardCancel()
             }
             
             self.canceled.removeAll()
         }
+    }
+    
+    // MARK: - Schedule
+    
+    func scheduleDownload(url: URL, forceDownload: Bool, completionHandler: @escaping AssetDownloadItemCompletionHandler) {
+        download(url: url, forceDownload: forceDownload, completionHandler: completionHandler)
     }
     
     // MARK: - Download
@@ -73,17 +79,6 @@ class AssetDownloadManager: NSObject {
         resumeDownloads()
     }
     
-    private func coalesceSameURLAssetDownloads(assetDownloadItem: AssetDownloadItem, forceDownload: Bool, completionHandler: @escaping AssetDownloadItemCompletionHandler) {
-        assetDownloadItem.coalesce(completionHandler)
-        if forceDownload { //Only care about upgrading forced value
-            assetDownloadItem.forceDownload = forceDownload
-        }
-    }
-    
-    func scheduleDownload(url: URL, forceDownload: Bool, completionHandler: @escaping AssetDownloadItemCompletionHandler) {
-        download(url: url, forceDownload: forceDownload, completionHandler: completionHandler)
-    }
-    
     private func pauseDownloads() {
         for assetDownloadItem in downloading.reversed() {
             assetDownloadItem.pause()
@@ -107,24 +102,6 @@ class AssetDownloadManager: NSObject {
         }
         
         generateReport()
-    }
-    
-    private func updatedConcurrentDownloadLimitIfNeeded() {
-        guard downloading.first?.forceDownload == false else {
-            maximumConcurrentDownloads = 1
-            return
-        }
-        
-        guard let assetDownloadItem = waiting.last else {
-            maximumConcurrentDownloads = AssetDownloadManager.maximumConcurrentDownloadsResetValue
-            return
-        }
-        
-        if assetDownloadItem.forceDownload {
-            maximumConcurrentDownloads = 1
-        } else {
-            maximumConcurrentDownloads = AssetDownloadManager.maximumConcurrentDownloadsResetValue
-        }
     }
     
     func cancelDownload(url: URL) {
@@ -156,6 +133,35 @@ class AssetDownloadManager: NSObject {
         generateReport()
         
         resumeDownloads()
+    }
+    
+    // MARK: - Limit
+    
+    private func updatedConcurrentDownloadLimitIfNeeded() {
+        guard downloading.first?.forceDownload == false else {
+            maximumConcurrentDownloads = 1
+            return
+        }
+        
+        guard let assetDownloadItem = waiting.last else {
+            maximumConcurrentDownloads = AssetDownloadManager.maximumConcurrentDownloadsResetValue
+            return
+        }
+        
+        if assetDownloadItem.forceDownload {
+            maximumConcurrentDownloads = 1
+        } else {
+            maximumConcurrentDownloads = AssetDownloadManager.maximumConcurrentDownloadsResetValue
+        }
+    }
+    
+    // MARK: - Coalesce
+    
+    private func coalesceSameURLAssetDownloads(assetDownloadItem: AssetDownloadItem, forceDownload: Bool, completionHandler: @escaping AssetDownloadItemCompletionHandler) {
+        assetDownloadItem.coalesce(completionHandler)
+        if forceDownload { //Only care about upgrading forced value
+            assetDownloadItem.forceDownload = forceDownload
+        }
     }
     
     // MARK: - Search
