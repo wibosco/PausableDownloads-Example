@@ -17,11 +17,11 @@ class AssetDownloadManager: NSObject {
         return session
     }()
     
-    private var waiting = [AssetDownloadItem]()
-    private var downloading = [AssetDownloadItem]()
+    var waiting = [AssetDownloadItem]()
+    var downloading = [AssetDownloadItem]()
     var canceled = [AssetDownloadItem]()
     
-    private static let maximumConcurrentDownloadsResetValue = Int.max
+    static var maximumConcurrentDownloadsResetValue = Int.max
     
     var maximumConcurrentDownloads = AssetDownloadManager.maximumConcurrentDownloadsResetValue
 
@@ -62,6 +62,7 @@ class AssetDownloadManager: NSObject {
             waiting.remove(at: index)
             waiting.append(assetDownloadItem) // Move download item to the front of the waiting stack
         } else if let (index, assetDownloadItem) = searchForCanceledAssetDownloadItem(withURL: url) {
+            //as it's canceled, no need to coalesce
             assetDownloadItem.completionHandler = completionHandler
             assetDownloadItem.forceDownload = forceDownload
             
@@ -265,12 +266,12 @@ extension AssetDownloadManager {
         print("Number of items downloading: \(downloading.count)")
         print("Number of items waitng for download: \(waiting.count)")
         print("Number of items canceled for download: \(canceled.count)")
-        
+
         print("")
         print("Items:")
-        
+
         let combined = downloading + waiting + canceled
-        
+
         if combined.count > 0 {
             for assetDownloadItem in combined {
                 let percentage = (assetDownloadItem.downloadPercentageComplete*10000).rounded()/100
@@ -279,7 +280,7 @@ extension AssetDownloadManager {
         } else {
             print("Empty")
         }
-        
+
         print("")
     }
 }
