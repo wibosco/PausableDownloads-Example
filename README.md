@@ -1,2 +1,2 @@
-# PausableQueue-Example
-A project showing an example of a pausable operation queue
+# DownloadStack-Example
+A project showing an example of a download stack where downloads can be forced or unforced downloads.
