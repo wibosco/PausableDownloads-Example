@@ -22,13 +22,7 @@ class RequestConfig {
     // MARK: - Client
     
     lazy var clientID: String = {
-        let clientID = "random_value"
-        
-        if clientID.count == 0 {
-            fatalError("You need to provide your clientID to use the imgur api")
-        }
-        
-        return clientID
+        return "random_value" //Replace with your clientID
     }()
     
     // MARK: - Networking
