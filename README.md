@@ -1,4 +1,4 @@
 [![Build Status](https://travis-ci.org/wibosco/DownloadStack-Example.svg)](https://travis-ci.org/wibosco/DownloadStack-Example)
 
 # DownloadStack-Example
-A project showing an example of a download stack where downloads can be forced or unforced downloads.
+A example project about treating download requests differently depending on how important they are to your app's UX, http://williamboles.me/not-all-downloads-are-born-equal/
