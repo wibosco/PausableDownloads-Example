@@ -104,7 +104,7 @@ class AssetDownloadManagerTests: XCTestCase {
         _ = AssetDownloadManager(notificationCenter: notificationCenterSpy)
         
         XCTAssertTrue(notificationCenterSpy.addObserverWasCalled)
-        XCTAssertEqual(notificationCenterSpy.forNamePassedIn, NSNotification.Name.UIApplicationDidReceiveMemoryWarning)
+        XCTAssertEqual(notificationCenterSpy.forNamePassedIn, UIApplication.didReceiveMemoryWarningNotification)
         XCTAssertNotNil(notificationCenterSpy.closurePassedIn)
     }
     
@@ -120,7 +120,7 @@ class AssetDownloadManagerTests: XCTestCase {
         let itemC = AssetDownloadItemSpy()
         manager.suspended.append(itemC)
         
-        NotificationCenter.default.post(name: NSNotification.Name.UIApplicationDidReceiveMemoryWarning, object: nil)
+        NotificationCenter.default.post(name: UIApplication.didReceiveMemoryWarningNotification, object: nil)
         
         XCTAssertTrue(manager.suspended.count == 0)
         XCTAssertTrue(itemA.hardCancelWasCalled)

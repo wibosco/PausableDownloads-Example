@@ -221,7 +221,7 @@ class AssetDownloadItemTests: XCTestCase {
         item.completionHandler = completionHandlerA
         item.coalesce(completionHandlerB)
         
-        item.completionHandler?(Result<Data>.success(expectedData))
+        item.completionHandler?(Result<Data, Error>.success(expectedData))
         
         waitForExpectations(timeout: 2) { (error) in
         }
@@ -257,7 +257,7 @@ class AssetDownloadItemTests: XCTestCase {
         item.completionHandler = completionHandlerA
         item.coalesce(completionHandlerB)
         
-        item.completionHandler?(Result<Data>.failure(APIError.invalidData))
+        item.completionHandler?(Result<Data, Error>.failure(APIError.invalidData))
         
         waitForExpectations(timeout: 2) { (error) in
         }
@@ -283,7 +283,7 @@ class AssetDownloadItemTests: XCTestCase {
 
         item.coalesce(completionHandler)
         
-        item.completionHandler?(Result<Data>.success(expectedData))
+        item.completionHandler?(Result<Data, Error>.success(expectedData))
         
         waitForExpectations(timeout: 2) { (error) in
         }

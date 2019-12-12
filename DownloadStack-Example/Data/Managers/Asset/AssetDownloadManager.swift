@@ -6,7 +6,7 @@
 //  Copyright © 2018 William Boles. All rights reserved.
 //
 
-import Foundation
+import UIKit
 
 class AssetDownloadManager: NSObject {
     
@@ -35,7 +35,7 @@ class AssetDownloadManager: NSObject {
     
     init(notificationCenter: NotificationCenter = NotificationCenter.default) {
         super.init()
-        notificationCenter.addObserver(forName: Notification.Name.UIApplicationDidReceiveMemoryWarning, object: nil, queue: OperationQueue.main) {_ in
+        notificationCenter.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: OperationQueue.main) {_ in
             for downloadAssetItem in self.suspended {
                 downloadAssetItem.hardCancel()
             }
