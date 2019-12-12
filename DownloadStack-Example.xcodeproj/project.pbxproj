@@ -153,19 +153,19 @@
 		3D63CC37204B554700797A82 /* ViewControllers */ = {
 			isa = PBXGroup;
 			children = (
-				3D63CC38204B554700797A82 /* Gallery */,
+				3D63CC38204B554700797A82 /* Albums */,
 				3D63CC3C204B554700797A82 /* AlbumViewer */,
 			);
 			path = ViewControllers;
 			sourceTree = "<group>";
 		};
-		3D63CC38204B554700797A82 /* Gallery */ = {
+		3D63CC38204B554700797A82 /* Albums */ = {
 			isa = PBXGroup;
 			children = (
 				3D63CC39204B554700797A82 /* Cells */,
 				3D63CC3B204B554700797A82 /* AlbumsViewController.swift */,
 			);
-			path = Gallery;
+			path = Albums;
 			sourceTree = "<group>";
 		};
 		3D63CC39204B554700797A82 /* Cells */ = {
@@ -197,10 +197,10 @@
 		3D63CC42204B554700797A82 /* Data */ = {
 			isa = PBXGroup;
 			children = (
-				3D63CC43204B554700797A82 /* Parsers */,
 				3D63CC47204B554700797A82 /* Managers */,
-				3D63CC4D204B554700797A82 /* Requests */,
 				3D63CC53204B554700797A82 /* Model */,
+				3D63CC43204B554700797A82 /* Parsers */,
+				3D63CC4D204B554700797A82 /* Requests */,
 			);
 			path = Data;
 			sourceTree = "<group>";
@@ -253,8 +253,8 @@
 		3D63CC4E204B554700797A82 /* Abstract */ = {
 			isa = PBXGroup;
 			children = (
-				3D63CC4F204B554700797A82 /* URLRequest+HTTPBody.swift */,
 				3D63CC50204B554700797A82 /* RequestConfig.swift */,
+				3D63CC4F204B554700797A82 /* URLRequest+HTTPBody.swift */,
 				3D63CC51204B554700797A82 /* URLRequestFactory.swift */,
 			);
 			path = Abstract;
@@ -263,9 +263,9 @@
 		3D63CC53204B554700797A82 /* Model */ = {
 			isa = PBXGroup;
 			children = (
+				3D63CC56204B554700797A82 /* GalleryAlbum.swift */,
 				3D63CC54204B554700797A82 /* GalleryAsset.swift */,
 				3D63CC55204B554700797A82 /* GalleryItem.swift */,
-				3D63CC56204B554700797A82 /* GalleryAlbum.swift */,
 			);
 			path = Model;
 			sourceTree = "<group>";
@@ -361,7 +361,7 @@
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 0920;
-				LastUpgradeCheck = 0920;
+				LastUpgradeCheck = 1130;
 				ORGANIZATIONNAME = "William Boles";
 				TargetAttributes = {
 					3DE07FC81FFF0F31003C95C0 = {
@@ -496,6 +496,7 @@
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
@@ -503,6 +504,7 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
@@ -553,6 +555,7 @@
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
@@ -560,6 +563,7 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;

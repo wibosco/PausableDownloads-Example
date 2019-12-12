@@ -8,15 +8,8 @@
 
 import Foundation
 
-struct GalleryAlbum {
+struct GalleryAlbum: Equatable {
     
     let thumbnailAsset: GalleryAsset
     let items: [GalleryItem]
-}
-
-extension GalleryAlbum: Equatable {}
-
-func ==(lhs: GalleryAlbum, rhs: GalleryAlbum) -> Bool {
-    return lhs.thumbnailAsset == rhs.thumbnailAsset &&
-        lhs.items == rhs.items
 }
