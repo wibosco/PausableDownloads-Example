@@ -22,7 +22,7 @@ class GalleryDataManager {
     
     // MARK: - List
     
-    func retrieveGallery(forSearchTerms searchTerms: String, completionHandler: @escaping ((_ searchTerms: String, _ result: DataRequestResult<[GalleryAlbum]>) -> ())) {
+    func retrieveGallery(forSearchTerms searchTerms: String, completionHandler: @escaping ((_ searchTerms: String, _ result: Result<[GalleryAlbum], Error>) -> ())) {
         let request = urlRequestFactory.requestToRetrieveGallerySearchResults(for: searchTerms)
         
         let task = session.dataTask(with: request) { (data: Data?, response: URLResponse?, error: Error?) in
@@ -30,9 +30,9 @@ class GalleryDataManager {
             if error != nil || data == nil {
                 DispatchQueue.main.async {
                     if error != nil {
-                         completionHandler(searchTerms, DataRequestResult.failure(error!))
+                         completionHandler(searchTerms, Result.failure(error!))
                     } else {
-                        completionHandler(searchTerms, DataRequestResult.failure(APIError.missingData))
+                        completionHandler(searchTerms, Result.failure(APIError.missingData))
                     }
                 }
                 return
@@ -45,11 +45,11 @@ class GalleryDataManager {
                 let galleryAlbums = parser.parseResponse(json)
                 
                 DispatchQueue.main.async {
-                    completionHandler(searchTerms, DataRequestResult.success(galleryAlbums))
+                    completionHandler(searchTerms, Result.success(galleryAlbums))
                 }
             } catch {
                 DispatchQueue.main.async {
-                    completionHandler(searchTerms, DataRequestResult.failure(APIError.serialization))
+                    completionHandler(searchTerms, Result.failure(APIError.serialization))
                 }
             }
         }

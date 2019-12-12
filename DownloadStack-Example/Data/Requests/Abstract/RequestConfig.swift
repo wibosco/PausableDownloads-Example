@@ -29,7 +29,7 @@ class RequestConfig {
     // MARK: - Init
     
     init() {
-        self.clientID = "" //TODO: Added youe clientID here
+        self.clientID = "7dafe2f2accc516" //TODO: Added youe clientID here
         self.APIHost = "https://api.imgur.com/3"
         self.timeInterval = 45
         self.cachePolicy = .useProtocolCachePolicy

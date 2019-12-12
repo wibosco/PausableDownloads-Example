@@ -8,12 +8,7 @@
 
 import Foundation
 
-enum DataRequestResult<T> {
-    case success(T)
-    case failure(Error)
-}
-
-typealias AssetDownloadItemCompletionHandler = ((_ result: DataRequestResult<Data>) -> Void)
+typealias AssetDownloadItemCompletionHandler = ((_ result: Result<Data, Error>) -> Void)
 
 enum Status: String {
     case waiting
