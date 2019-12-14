@@ -10,26 +10,41 @@ import Foundation
 
 typealias AssetDownloadItemCompletionHandler = ((_ result: Result<Data, Error>) -> Void)
 
-enum Status: String {
+enum Status: CustomStringConvertible {
     case waiting
     case downloading
     case suspended
-    case canceled
+    case cancelled
+    
+    // MARK: - Description
+    
+    var description: String {
+        switch self {
+        case .waiting:
+            return "Waiting"
+        case .downloading:
+            return "Downloading"
+        case .suspended:
+            return "Suspended"
+        case .cancelled:
+            return "Cancelled"
+        }
+    }
 }
 
 class AssetDownloadItem {
     
-    fileprivate let task: URLSessionDownloadTask
+    private let task: URLSessionDownloadTaskType
     
     var completionHandler: AssetDownloadItemCompletionHandler?
     
     var forceDownload = false
     var downloadPercentageComplete = 0.0
-    var status = Status.waiting
+    var status: Status = .waiting
     
     // MARK: - Init
     
-    init(task: URLSessionDownloadTask) {
+    init(task: URLSessionDownloadTaskType) {
         self.task = task
     }
     
@@ -53,7 +68,7 @@ class AssetDownloadItem {
     }
     
     func hardCancel() {
-        status = .canceled
+        status = .cancelled
         forceDownload = false
         task.cancel()
     }
@@ -66,7 +81,11 @@ class AssetDownloadItem {
     
     //MARK: - Coalesce
     
-    func coalesce(_ additionalCompletionHandler: @escaping AssetDownloadItemCompletionHandler) {
+    func coalesce(_ otherAssetDownloadItem: AssetDownloadItem) {
+        if !forceDownload && otherAssetDownloadItem.forceDownload { //Only care about upgrading forced value to true
+            forceDownload = true
+        }
+        
         let initalCompletionHandler = completionHandler
         
         completionHandler = { (result) in
@@ -74,7 +93,7 @@ class AssetDownloadItem {
                 initalCompletionClosure(result)
             }
             
-            additionalCompletionHandler(result)
+            otherAssetDownloadItem.completionHandler?(result)
         }
     }
 }

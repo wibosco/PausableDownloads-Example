@@ -12,13 +12,19 @@ import XCTest
 
 class AssetDownloadItemTests: XCTestCase {
     
+    var downloadTask: MockURLSessionDownloadTask!
+    
     // MARK: - Lifecycle
     
     override func setUp() {
         super.setUp()
+        
+        downloadTask = MockURLSessionDownloadTask()
     }
     
     override func tearDown() {
+        downloadTask = nil
+        
         super.tearDown()
     }
     
@@ -27,28 +33,26 @@ class AssetDownloadItemTests: XCTestCase {
     // MARK: Pause
     
     func test_pause_taskSuspended() {
-        let spy = URLSessionDownloadTaskSpy()
+        let suspendExpectation = expectation(description: "suspendExpectation")
+        downloadTask.suspendClosure = {
+            suspendExpectation.fulfill()
+        }
         
-        let item = AssetDownloadItem(task: spy)
+        let item = AssetDownloadItem(task: downloadTask)
         item.pause()
         
-        XCTAssertTrue(spy.suspendWasCalled)
+        waitForExpectations(timeout: 3, handler: nil)
     }
     
     func test_pause_state() {
-        let task = URLSessionDownloadTaskSpy()
-        
-        let item = AssetDownloadItem(task: task)
+        let item = AssetDownloadItem(task: downloadTask)
         item.pause()
         
-        XCTAssertFalse(item.forceDownload)
         XCTAssertEqual(item.status, Status.waiting)
     }
     
     func test_pause_forceDownloadSetToFalse() {
-        let task = URLSessionDownloadTaskSpy()
-        
-        let item = AssetDownloadItem(task: task)
+        let item = AssetDownloadItem(task: downloadTask)
         item.forceDownload = true
         item.pause()
         
@@ -58,37 +62,34 @@ class AssetDownloadItemTests: XCTestCase {
     // MARK: Resume
     
     func test_resume_taskResumed() {
-        let spy = URLSessionDownloadTaskSpy()
+        let resumeExpectation = expectation(description: "resumeExpectation")
+        downloadTask.resumeClosure = {
+            resumeExpectation.fulfill()
+        }
         
-        let item = AssetDownloadItem(task: spy)
+        let item = AssetDownloadItem(task: downloadTask)
         item.resume()
         
-        XCTAssertTrue(spy.resumeWasCalled)
+        waitForExpectations(timeout: 3, handler: nil)
     }
     
     func test_resume_state() {
-        let task = URLSessionDownloadTaskSpy()
-        
-        let item = AssetDownloadItem(task: task)
+        let item = AssetDownloadItem(task: downloadTask)
         item.resume()
         
         XCTAssertEqual(item.status, Status.downloading)
     }
     
-    func test_resume_forceDownloadTrue() {
-        let task = URLSessionDownloadTaskSpy()
-        
-        let item = AssetDownloadItem(task: task)
+    func test_resume_forceDownloadStaysTrue() {
+        let item = AssetDownloadItem(task: downloadTask)
         item.forceDownload = true
         item.resume()
         
         XCTAssertTrue(item.forceDownload)
     }
     
-    func test_resume_forceDownloadFalse() {
-        let task = URLSessionDownloadTaskSpy()
-        
-        let item = AssetDownloadItem(task: task)
+    func test_resume_forceDownloadStaysFalse() {
+        let item = AssetDownloadItem(task: downloadTask)
         item.forceDownload = false
         item.resume()
         
@@ -97,39 +98,28 @@ class AssetDownloadItemTests: XCTestCase {
     
     // MARK: SoftCancel
     
-    func test_softCancel_taskResumed() {
-        let spy = URLSessionDownloadTaskSpy()
+    func test_softCancel_taskSuspend() {
+        let suspendExpectation = expectation(description: "suspendExpectation")
+        downloadTask.suspendClosure = {
+            suspendExpectation.fulfill()
+        }
         
-        let item = AssetDownloadItem(task: spy)
+        let item = AssetDownloadItem(task: downloadTask)
         item.softCancel()
         
-        XCTAssertTrue(spy.suspendWasCalled)
+        waitForExpectations(timeout: 3, handler: nil)
     }
     
     func test_softCancel_state() {
-        let task = URLSessionDownloadTaskSpy()
-        
-        let item = AssetDownloadItem(task: task)
+        let item = AssetDownloadItem(task: downloadTask)
         item.softCancel()
         
         XCTAssertEqual(item.status, Status.suspended)
     }
     
-    func test_softCancel_forceDownloadTrue() {
-        let task = URLSessionDownloadTaskSpy()
-        
-        let item = AssetDownloadItem(task: task)
+    func test_softCancel_forceDownloadSetToFalse() {
+        let item = AssetDownloadItem(task: downloadTask)
         item.forceDownload = true
-        item.softCancel()
-        
-        XCTAssertFalse(item.forceDownload)
-    }
-    
-    func test_softCancel_forceDownloadFalse() {
-        let task = URLSessionDownloadTaskSpy()
-        
-        let item = AssetDownloadItem(task: task)
-        item.forceDownload = false
         item.softCancel()
         
         XCTAssertFalse(item.forceDownload)
@@ -137,39 +127,28 @@ class AssetDownloadItemTests: XCTestCase {
     
     // MARK: HardCancel
     
-    func test_hardCancel_taskResumed() {
-        let spy = URLSessionDownloadTaskSpy()
+    func test_hardCancel_taskCancelled() {
+        let cancelExpectation = expectation(description: "cancelExpectation")
+        downloadTask.cancelClosure = {
+            cancelExpectation.fulfill()
+        }
         
-        let item = AssetDownloadItem(task: spy)
+        let item = AssetDownloadItem(task: downloadTask)
         item.hardCancel()
         
-        XCTAssertTrue(spy.cancelWasCalled)
+        waitForExpectations(timeout: 3, handler: nil)
     }
     
     func test_hardCancel_state() {
-        let task = URLSessionDownloadTaskSpy()
-        
-        let item = AssetDownloadItem(task: task)
+        let item = AssetDownloadItem(task: downloadTask)
         item.hardCancel()
         
-        XCTAssertEqual(item.status, Status.canceled)
+        XCTAssertEqual(item.status, Status.cancelled)
     }
     
-    func test_hardCancel_forceDownloadTrue() {
-        let task = URLSessionDownloadTaskSpy()
-        
-        let item = AssetDownloadItem(task: task)
+    func test_hardCancel_forceDownloadSetToFalse() {
+        let item = AssetDownloadItem(task: downloadTask)
         item.forceDownload = true
-        item.hardCancel()
-        
-        XCTAssertFalse(item.forceDownload)
-    }
-    
-    func test_hardCancel_forceDownloadFalse() {
-        let task = URLSessionDownloadTaskSpy()
-        
-        let item = AssetDownloadItem(task: task)
-        item.forceDownload = false
         item.hardCancel()
         
         XCTAssertFalse(item.forceDownload)
@@ -178,11 +157,11 @@ class AssetDownloadItemTests: XCTestCase {
     // MARK: URL
     
     func test_url_matches() {
-        let session = URLSession.shared
         let url = URL(string: "http://test.com")!
-        let task = session.downloadTask(with: url)
+        let request = URLRequest(url: url)
+        downloadTask.currentRequest = request
         
-        let item = AssetDownloadItem(task: task)
+        let item = AssetDownloadItem(task: downloadTask)
         
         XCTAssertEqual(url, item.url)
     }
@@ -190,14 +169,12 @@ class AssetDownloadItemTests: XCTestCase {
     // MARK: Coalesce
     
     func test_coalesce_mutlipleSuccessCallbacksTriggered() {
-        let task = URLSessionDownloadTaskSpy()
-        
-        let item = AssetDownloadItem(task: task)
-        
         let expectedData = "this is a test".data(using: .utf8)!
         
+        let itemA = AssetDownloadItem(task: downloadTask)
+        
         let expectationA = expectation(description: "Closure called")
-        let completionHandlerA: AssetDownloadItemCompletionHandler = { result in
+        itemA.completionHandler = { result in
             switch result {
             case .success(let data):
                 XCTAssertEqual(data, expectedData)
@@ -207,8 +184,10 @@ class AssetDownloadItemTests: XCTestCase {
             expectationA.fulfill()
         }
         
+        let itemB = AssetDownloadItem(task: downloadTask)
+        
         let expectationB = expectation(description: "Closure called")
-        let completionHandlerB: AssetDownloadItemCompletionHandler = { result in
+        itemB.completionHandler = { result in
             switch result {
             case .success(let data):
                 XCTAssertEqual(data, expectedData)
@@ -218,22 +197,18 @@ class AssetDownloadItemTests: XCTestCase {
             expectationB.fulfill()
         }
         
-        item.completionHandler = completionHandlerA
-        item.coalesce(completionHandlerB)
+        itemA.coalesce(itemB)
         
-        item.completionHandler?(Result<Data, Error>.success(expectedData))
+        itemA.completionHandler?(Result<Data, Error>.success(expectedData))
         
-        waitForExpectations(timeout: 2) { (error) in
-        }
+        waitForExpectations(timeout: 3, handler: nil)
     }
     
     func test_coalesce_mutlipleFailureCallbacksTriggered() {
-        let task = URLSessionDownloadTaskSpy()
-        
-        let item = AssetDownloadItem(task: task)
+        let itemA = AssetDownloadItem(task: downloadTask)
         
         let expectationA = expectation(description: "Closure called")
-        let completionHandlerA: AssetDownloadItemCompletionHandler = { result in
+        itemA.completionHandler = { result in
             switch result {
             case .failure(_):
                 break
@@ -243,8 +218,10 @@ class AssetDownloadItemTests: XCTestCase {
             expectationA.fulfill()
         }
         
+        let itemB = AssetDownloadItem(task: downloadTask)
+        
         let expectationB = expectation(description: "Closure called")
-        let completionHandlerB: AssetDownloadItemCompletionHandler = { result in
+        itemB.completionHandler = { result in
             switch result {
             case .failure(_):
                 break
@@ -253,25 +230,23 @@ class AssetDownloadItemTests: XCTestCase {
             }
             expectationB.fulfill()
         }
+
+        itemA.coalesce(itemB)
         
-        item.completionHandler = completionHandlerA
-        item.coalesce(completionHandlerB)
+        itemA.completionHandler?(Result<Data, Error>.failure(APIError.invalidData))
         
-        item.completionHandler?(Result<Data, Error>.failure(APIError.invalidData))
-        
-        waitForExpectations(timeout: 2) { (error) in
-        }
+        waitForExpectations(timeout: 3, handler: nil)
     }
     
     func test_coalesce_additionalCallbackTriggeredWhenNoInitialOneExists() {
-        let task = URLSessionDownloadTaskSpy()
-        
-        let item = AssetDownloadItem(task: task)
-        
         let expectedData = "this is a test".data(using: .utf8)!
         
+        let itemA = AssetDownloadItem(task: downloadTask)
+        
+        let itemB = AssetDownloadItem(task: downloadTask)
+        
         let callbackExpectation = expectation(description: "Closure called")
-        let completionHandler: AssetDownloadItemCompletionHandler = { result in
+        itemB.completionHandler = { result in
             switch result {
             case .success(let data):
                 XCTAssertEqual(data, expectedData)
@@ -281,12 +256,11 @@ class AssetDownloadItemTests: XCTestCase {
             callbackExpectation.fulfill()
         }
 
-        item.coalesce(completionHandler)
+        itemA.coalesce(itemB)
         
-        item.completionHandler?(Result<Data, Error>.success(expectedData))
+        itemA.completionHandler?(Result<Data, Error>.success(expectedData))
         
-        waitForExpectations(timeout: 2) { (error) in
-        }
+        waitForExpectations(timeout: 3, handler: nil)
     }
     
     // MARK: Equality
@@ -295,11 +269,11 @@ class AssetDownloadItemTests: XCTestCase {
         let urlA = URL(string: "http://test.com")!
         let urlB = URL(string: "http://test.com")!
         
-        let taskA = URLSessionDownloadTaskSpy()
-        taskA.currentRequestToBeReturned = URLRequest(url: urlA)
+        let taskA = MockURLSessionDownloadTask()
+        taskA.currentRequest = URLRequest(url: urlA)
         
-        let taskB = URLSessionDownloadTaskSpy()
-        taskB.currentRequestToBeReturned = URLRequest(url: urlB)
+        let taskB = MockURLSessionDownloadTask()
+        taskB.currentRequest = URLRequest(url: urlB)
         
         let itemA = AssetDownloadItem(task: taskA)
         let itemB = AssetDownloadItem(task: taskB)
@@ -311,15 +285,15 @@ class AssetDownloadItemTests: XCTestCase {
         let urlA = URL(string: "http://testA.com")!
         let urlB = URL(string: "http://testB.com")!
         
-        let taskA = URLSessionDownloadTaskSpy()
-        taskA.currentRequestToBeReturned = URLRequest(url: urlA)
+        let taskA = MockURLSessionDownloadTask()
+        taskA.currentRequest = URLRequest(url: urlA)
         
-        let taskB = URLSessionDownloadTaskSpy()
-        taskB.currentRequestToBeReturned = URLRequest(url: urlB)
+        let taskB = MockURLSessionDownloadTask()
+        taskB.currentRequest = URLRequest(url: urlB)
         
         let itemA = AssetDownloadItem(task: taskA)
         let itemB = AssetDownloadItem(task: taskB)
-        
+     
         XCTAssertNotEqual(itemA, itemB)
     }
 }
