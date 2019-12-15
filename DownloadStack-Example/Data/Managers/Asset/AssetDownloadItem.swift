@@ -15,6 +15,7 @@ enum Status: CustomStringConvertible {
     case downloading
     case suspended
     case cancelled
+    case done
     
     // MARK: - Description
     
@@ -28,19 +29,46 @@ enum Status: CustomStringConvertible {
             return "Suspended"
         case .cancelled:
             return "Cancelled"
+        case .done:
+            return "Done"
         }
     }
 }
 
-class AssetDownloadItem {
+protocol AssetDownloadItemType: class {
+    var completionHandler: AssetDownloadItemCompletionHandler? { get set }
+    var immediateDownload: Bool { get set }
+    var downloadPercentageComplete: Double { get set }
+    var status: Status { get }
+    var url: URL { get }
     
+    func resume()
+    func pause()
+    func softCancel()
+    func hardCancel()
+    func done()
+    func coalesce(_ otherAssetDownloadItem: AssetDownloadItemType)
+}
+
+class AssetDownloadItem: AssetDownloadItemType, CustomStringConvertible {
+
     private let task: URLSessionDownloadTaskType
     
     var completionHandler: AssetDownloadItemCompletionHandler?
     
-    var forceDownload = false
+    var immediateDownload = false
     var downloadPercentageComplete = 0.0
-    var status: Status = .waiting
+    private(set) var status: Status = .waiting
+    
+    var url: URL {
+        return task.currentRequest!.url!
+    }
+    
+    var description: String {
+        let percentage = (downloadPercentageComplete * 100).rounded()
+        let immediate = immediateDownload ? "Yes" : "No"
+        return "URL: \(url.absoluteString), status: \(status), immeediate download: \(immediate), percentage completed: \(percentage)%"
+    }
     
     // MARK: - Init
     
@@ -57,33 +85,31 @@ class AssetDownloadItem {
     
     func pause() {
         status = .waiting
-        forceDownload = false
+        immediateDownload = false
         task.suspend()
     }
     
     func softCancel() {
         status = .suspended
-        forceDownload = false
+        immediateDownload = false
         task.suspend()
     }
     
     func hardCancel() {
         status = .cancelled
-        forceDownload = false
+        immediateDownload = false
         task.cancel()
     }
     
-    // MARK: - Meta
-    
-    var url: URL {
-        return task.currentRequest!.url!
+    func done() {
+        status = .done
     }
     
     //MARK: - Coalesce
     
-    func coalesce(_ otherAssetDownloadItem: AssetDownloadItem) {
-        if !forceDownload && otherAssetDownloadItem.forceDownload { //Only care about upgrading forced value to true
-            forceDownload = true
+    func coalesce(_ otherAssetDownloadItem: AssetDownloadItemType) {
+        if !immediateDownload && otherAssetDownloadItem.immediateDownload { //Only care about upgrading value to true
+            immediateDownload = true
         }
         
         let initalCompletionHandler = completionHandler
@@ -99,8 +125,7 @@ class AssetDownloadItem {
 }
 
 extension AssetDownloadItem: Equatable {
-    static func ==(lhs: AssetDownloadItem, rhs: AssetDownloadItem) -> Bool {
+    static func == (lhs: AssetDownloadItem, rhs: AssetDownloadItem) -> Bool {
         return lhs.url == rhs.url
     }
 }
-

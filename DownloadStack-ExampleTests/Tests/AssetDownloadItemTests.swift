@@ -53,10 +53,10 @@ class AssetDownloadItemTests: XCTestCase {
     
     func test_pause_forceDownloadSetToFalse() {
         let item = AssetDownloadItem(task: downloadTask)
-        item.forceDownload = true
+        item.immediateDownload = true
         item.pause()
         
-        XCTAssertFalse(item.forceDownload)
+        XCTAssertFalse(item.immediateDownload)
     }
     
     // MARK: Resume
@@ -82,18 +82,18 @@ class AssetDownloadItemTests: XCTestCase {
     
     func test_resume_forceDownloadStaysTrue() {
         let item = AssetDownloadItem(task: downloadTask)
-        item.forceDownload = true
+        item.immediateDownload = true
         item.resume()
         
-        XCTAssertTrue(item.forceDownload)
+        XCTAssertTrue(item.immediateDownload)
     }
     
     func test_resume_forceDownloadStaysFalse() {
         let item = AssetDownloadItem(task: downloadTask)
-        item.forceDownload = false
+        item.immediateDownload = false
         item.resume()
         
-        XCTAssertFalse(item.forceDownload)
+        XCTAssertFalse(item.immediateDownload)
     }
     
     // MARK: SoftCancel
@@ -119,10 +119,10 @@ class AssetDownloadItemTests: XCTestCase {
     
     func test_softCancel_forceDownloadSetToFalse() {
         let item = AssetDownloadItem(task: downloadTask)
-        item.forceDownload = true
+        item.immediateDownload = true
         item.softCancel()
         
-        XCTAssertFalse(item.forceDownload)
+        XCTAssertFalse(item.immediateDownload)
     }
     
     // MARK: HardCancel
@@ -148,10 +148,10 @@ class AssetDownloadItemTests: XCTestCase {
     
     func test_hardCancel_forceDownloadSetToFalse() {
         let item = AssetDownloadItem(task: downloadTask)
-        item.forceDownload = true
+        item.immediateDownload = true
         item.hardCancel()
         
-        XCTAssertFalse(item.forceDownload)
+        XCTAssertFalse(item.immediateDownload)
     }
     
     // MARK: URL

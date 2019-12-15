@@ -16,7 +16,6 @@ class AssetDownloadManagerTests: XCTestCase {
     
     var sessionFactory: MockURLSessionFactory!
     var session: MockURLSession!
-    var notificationCenter: MockNotificationCenter!
     
     // MARK: - Lifecycle
     
@@ -25,15 +24,13 @@ class AssetDownloadManagerTests: XCTestCase {
         sessionFactory = MockURLSessionFactory()
         session = MockURLSession()
         sessionFactory.defaultSession = session
-        notificationCenter = MockNotificationCenter()
         
-        sut = AssetDownloadManager(urlSessionFactory: sessionFactory, notificationCenter: notificationCenter)
+        sut = AssetDownloadManager(urlSessionFactory: sessionFactory)
     }
     
     override func tearDown() {
         sessionFactory = nil
         session = nil
-        notificationCenter = nil
         
         sut = nil
     
@@ -41,26 +38,6 @@ class AssetDownloadManagerTests: XCTestCase {
     }
     
     // MARK: - Tests
-    
-    // MARK: Notification
-    
-    func test_init_notificationRegistration() {
-        let notificationCenter = MockNotificationCenter()
-        let addObserverExpectation = expectation(description: "addObserverExpectation")
-        notificationCenter.addObserverClosure = { (name, object, queue, block) in
-            XCTAssertEqual(name, UIApplication.didReceiveMemoryWarningNotification)
-            
-            addObserverExpectation.fulfill()
-        }
-        
-        _ = AssetDownloadManager(notificationCenter: notificationCenter)
-        
-        waitForExpectations(timeout: 3, handler: nil)
-    }
-    
-    func test_init_notificationTriggeredClearsCanceledItems() {
-        //TODO: Implement
-    }
     
     // MARK: ScheduleDownload
     

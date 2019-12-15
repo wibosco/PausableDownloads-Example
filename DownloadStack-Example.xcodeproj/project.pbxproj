@@ -16,6 +16,8 @@
 		3D14764E23A45BB700110035 /* MockURLSessionDownloadTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D14764D23A45BB700110035 /* MockURLSessionDownloadTask.swift */; };
 		3D14765023A45DDA00110035 /* MockURLSessionFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D14764F23A45DDA00110035 /* MockURLSessionFactory.swift */; };
 		3D14765223A54CD100110035 /* MockNotificationCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D14765123A54CD100110035 /* MockNotificationCenter.swift */; };
+		3D14765423A5A77E00110035 /* AssetDownloadsSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D14765323A5A77E00110035 /* AssetDownloadsSession.swift */; };
+		3D14765823A66DED00110035 /* AssetDownloadsSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D14765723A66DED00110035 /* AssetDownloadsSessionTests.swift */; };
 		3D63CC57204B554700797A82 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3D63CC2D204B554700797A82 /* LaunchScreen.storyboard */; };
 		3D63CC58204B554700797A82 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3D63CC2F204B554700797A82 /* Main.storyboard */; };
 		3D63CC59204B554700797A82 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3D63CC33204B554700797A82 /* Assets.xcassets */; };
@@ -58,6 +60,8 @@
 		3D14764D23A45BB700110035 /* MockURLSessionDownloadTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockURLSessionDownloadTask.swift; sourceTree = "<group>"; };
 		3D14764F23A45DDA00110035 /* MockURLSessionFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockURLSessionFactory.swift; sourceTree = "<group>"; };
 		3D14765123A54CD100110035 /* MockNotificationCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockNotificationCenter.swift; sourceTree = "<group>"; };
+		3D14765323A5A77E00110035 /* AssetDownloadsSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetDownloadsSession.swift; sourceTree = "<group>"; };
+		3D14765723A66DED00110035 /* AssetDownloadsSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetDownloadsSessionTests.swift; sourceTree = "<group>"; };
 		3D63CC2E204B554700797A82 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		3D63CC30204B554700797A82 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		3D63CC33204B554700797A82 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -278,8 +282,9 @@
 		3D63CC48204B554700797A82 /* Asset */ = {
 			isa = PBXGroup;
 			children = (
-				3D63CC49204B554700797A82 /* AssetDownloadManager.swift */,
 				3D63CC4A204B554700797A82 /* AssetDownloadItem.swift */,
+				3D63CC49204B554700797A82 /* AssetDownloadManager.swift */,
+				3D14765323A5A77E00110035 /* AssetDownloadsSession.swift */,
 			);
 			path = Asset;
 			sourceTree = "<group>";
@@ -309,6 +314,7 @@
 			children = (
 				3D63CC70204B555300797A82 /* AssetDownloadItemTests.swift */,
 				3D63CC71204B555300797A82 /* AssetDownloadManagerTests.swift */,
+				3D14765723A66DED00110035 /* AssetDownloadsSessionTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -460,6 +466,7 @@
 				3D63CC6C204B554700797A82 /* GalleryItem.swift in Sources */,
 				3D14764523A451E900110035 /* URLRequest+HTTPBody.swift in Sources */,
 				3D63CC6D204B554700797A82 /* GalleryAlbum.swift in Sources */,
+				3D14765423A5A77E00110035 /* AssetDownloadsSession.swift in Sources */,
 				3D63CC5A204B554700797A82 /* NSObject+Name.swift in Sources */,
 				3D63CC5C204B554700797A82 /* AlbumsViewController.swift in Sources */,
 				3D63CC61204B554700797A82 /* Parser.swift in Sources */,
@@ -474,6 +481,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3D14765823A66DED00110035 /* AssetDownloadsSessionTests.swift in Sources */,
 				3D14765223A54CD100110035 /* MockNotificationCenter.swift in Sources */,
 				3D14764C23A45B1900110035 /* MockURLSession.swift in Sources */,
 				3D14765023A45DDA00110035 /* MockURLSessionFactory.swift in Sources */,
