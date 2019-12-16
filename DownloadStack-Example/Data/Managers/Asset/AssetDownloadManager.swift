@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import os
 
 class AssetDownloadManager: NSObject, URLSessionDownloadDelegate {
 
@@ -66,7 +67,7 @@ class AssetDownloadManager: NSObject, URLSessionDownloadDelegate {
         let percentageComplete = Double(totalBytesWritten)/Double(totalBytesExpectedToWrite)
         assetDownloadItem.downloadPercentageComplete = percentageComplete
         
-        print("Downloaded some of: \(assetDownloadItem)")
+        os_log(.info, "Downloaded some of: %{public}@", assetDownloadItem.description)
     }
     
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {

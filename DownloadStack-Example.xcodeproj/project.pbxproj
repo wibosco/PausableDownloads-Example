@@ -18,9 +18,9 @@
 		3D14765223A54CD100110035 /* MockNotificationCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D14765123A54CD100110035 /* MockNotificationCenter.swift */; };
 		3D14765423A5A77E00110035 /* AssetDownloadsSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D14765323A5A77E00110035 /* AssetDownloadsSession.swift */; };
 		3D14765823A66DED00110035 /* AssetDownloadsSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D14765723A66DED00110035 /* AssetDownloadsSessionTests.swift */; };
+		3D14765A23A6FD1C00110035 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3D14765923A6FD1C00110035 /* Assets.xcassets */; };
 		3D63CC57204B554700797A82 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3D63CC2D204B554700797A82 /* LaunchScreen.storyboard */; };
 		3D63CC58204B554700797A82 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3D63CC2F204B554700797A82 /* Main.storyboard */; };
-		3D63CC59204B554700797A82 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3D63CC33204B554700797A82 /* Assets.xcassets */; };
 		3D63CC5A204B554700797A82 /* NSObject+Name.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D63CC36204B554700797A82 /* NSObject+Name.swift */; };
 		3D63CC5B204B554700797A82 /* AlbumCollectionViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D63CC3A204B554700797A82 /* AlbumCollectionViewCell.swift */; };
 		3D63CC5C204B554700797A82 /* AlbumsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D63CC3B204B554700797A82 /* AlbumsViewController.swift */; };
@@ -62,9 +62,9 @@
 		3D14765123A54CD100110035 /* MockNotificationCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockNotificationCenter.swift; sourceTree = "<group>"; };
 		3D14765323A5A77E00110035 /* AssetDownloadsSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetDownloadsSession.swift; sourceTree = "<group>"; };
 		3D14765723A66DED00110035 /* AssetDownloadsSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetDownloadsSessionTests.swift; sourceTree = "<group>"; };
+		3D14765923A6FD1C00110035 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		3D63CC2E204B554700797A82 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		3D63CC30204B554700797A82 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
-		3D63CC33204B554700797A82 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		3D63CC36204B554700797A82 /* NSObject+Name.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "NSObject+Name.swift"; sourceTree = "<group>"; };
 		3D63CC3A204B554700797A82 /* AlbumCollectionViewCell.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AlbumCollectionViewCell.swift; sourceTree = "<group>"; };
 		3D63CC3B204B554700797A82 /* AlbumsViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AlbumsViewController.swift; sourceTree = "<group>"; };
@@ -168,17 +168,9 @@
 		3D63CC31204B554700797A82 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				3D63CC32204B554700797A82 /* Images */,
+				3D14765923A6FD1C00110035 /* Assets.xcassets */,
 			);
 			path = Resources;
-			sourceTree = "<group>";
-		};
-		3D63CC32204B554700797A82 /* Images */ = {
-			isa = PBXGroup;
-			children = (
-				3D63CC33204B554700797A82 /* Assets.xcassets */,
-			);
-			path = Images;
 			sourceTree = "<group>";
 		};
 		3D63CC34204B554700797A82 /* Extensions */ = {
@@ -434,7 +426,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				3D63CC57204B554700797A82 /* LaunchScreen.storyboard in Resources */,
-				3D63CC59204B554700797A82 /* Assets.xcassets in Resources */,
+				3D14765A23A6FD1C00110035 /* Assets.xcassets in Resources */,
 				3D63CC58204B554700797A82 /* Main.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -571,7 +563,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 11.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
@@ -625,7 +617,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 11.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";

@@ -35,7 +35,7 @@ enum Status: CustomStringConvertible {
     }
 }
 
-protocol AssetDownloadItemType: class {
+protocol AssetDownloadItemType: class, CustomStringConvertible {
     var completionHandler: AssetDownloadItemCompletionHandler? { get set }
     var immediateDownload: Bool { get set }
     var downloadPercentageComplete: Double { get set }
@@ -50,7 +50,7 @@ protocol AssetDownloadItemType: class {
     func coalesce(_ otherAssetDownloadItem: AssetDownloadItemType)
 }
 
-class AssetDownloadItem: AssetDownloadItemType, CustomStringConvertible {
+class AssetDownloadItem: AssetDownloadItemType {
 
     private let task: URLSessionDownloadTaskType
     

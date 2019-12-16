@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import os
 
 enum DownloadingMode: CustomStringConvertible {
     case single
@@ -64,7 +65,7 @@ class AssetDownloadsSession {
     }
     
     private func hardCancellSoftCancelledDownloads() {
-        print("Hard cancelling \(cancelled.count) items")
+        os_log(.info, "Hard cancelling %{public}d items", cancelled.count)
         
         for downloadAssetItem in cancelled {
             downloadAssetItem.hardCancel()
@@ -77,15 +78,15 @@ class AssetDownloadsSession {
     
     func insert(assetDownloadItem: AssetDownloadItemType) {
         if let (_, existingAssetDownloadItem) = downloadingAssetDownloadItem(withURL: assetDownloadItem.url) {
-            print("Found existing active download so coalescing them")
+            os_log(.info, "Found existing active download so coalescing them")
             existingAssetDownloadItem.coalesce(assetDownloadItem)
         } else if let (_, existingAssetDownloadItem) = waitingAssetDownloadItem(withURL: assetDownloadItem.url) {
-            print("Found existing waitingg download so coalescing them")
+            os_log(.info, "Found existing waitingg download so coalescing them")
             existingAssetDownloadItem.coalesce(assetDownloadItem)
             // Move download item to the front of the waiting stack
             moveAssetDownloadItemToFrontOfWaiting(assetDownloadItem)
         } else if let (_, existingAssetDownloadItem) = cancelledAssetDownloadItem(withURL: assetDownloadItem.url) {
-            print("Found existing soft-cancelled download so reviving download")
+            os_log(.info, "Found existing soft-cancelled download so reviving download")
             //as the download was cancelled no need to coalesce - just override
             existingAssetDownloadItem.completionHandler = assetDownloadItem.completionHandler
             existingAssetDownloadItem.immediateDownload = assetDownloadItem.immediateDownload
@@ -93,7 +94,7 @@ class AssetDownloadsSession {
             // Add to front of waiting stack
             transferFromCancelledToWaiting(assetDownloadItem: existingAssetDownloadItem)
         } else {
-            print("New download")
+            os_log(.info, "New download")
             // Add to front of waiting stack
             waiting.append(assetDownloadItem)
         }
@@ -116,11 +117,8 @@ class AssetDownloadsSession {
             assetDownloadItem.softCancel()
             cancelled.append(assetDownloadItem)
             
-            print("Cancelled download: \(assetDownloadItem)")
+            os_log(.info, "Cancelled download: %{public}@)", assetDownloadItem.description)
         }
-        
-        
-        generateReport()
     }
     
     // MARK: - Pause
@@ -130,27 +128,25 @@ class AssetDownloadsSession {
             return
         }
         
-        print("Pausing all downloads")
+        os_log(.info, "Pausing all downloads")
         
         for assetDownloadItem in downloading.reversed() {
             assetDownloadItem.pause()
             transferFromDownloadingToWaiting(assetDownloadItem: assetDownloadItem)
         }
         
-        print("Currently paused the download of \(waiting.count) assets")
-        
-        generateReport()
+        os_log(.info, "Currently paused the download of %{public}d assets", waiting.count)
     }
     
     // MARK: - Resume
     
     func startDownloads() {
         guard waiting.count > 0 else {
-            print("Downloading \(downloading.count) assets")
+            os_log(.info, "Downloading %{public}d assets", downloading.count)
             return
         }
         
-        print("Starting downloads in \(downloadingMode) mode with \(waiting.count) assets to download")
+        os_log(.info, "Starting downloads in %{public}@ mode with %{public}d assets to download", downloadingMode.description, waiting.count)
         
         switch downloadingMode {
         case .multiple:
@@ -164,9 +160,7 @@ class AssetDownloadsSession {
             }
         }
         
-        print("Currently downloading \(downloading.count) assets")
-        
-        generateReport()
+        os_log(.info, "Currently downloading %{public}d assets", downloading.count)
     }
     
     private func startDownloading(assetDownloadItems: [AssetDownloadItemType]) {
@@ -174,7 +168,7 @@ class AssetDownloadsSession {
             downloading.append(assetDownloadItem)
             assetDownloadItem.resume()
             
-            print("Started downloading: \(assetDownloadItem)")
+            os_log(.info, "Started downloading: %{public}@", assetDownloadItem.description)
         }
     }
     
@@ -188,9 +182,7 @@ class AssetDownloadsSession {
         assetDownloadItem.done()
         downloading.remove(at: index)
         
-        print("Finish downloading: \(assetDownloadItem)")
-        
-        generateReport()
+        os_log(.info, "Finish downloading: %{public}@", assetDownloadItem.description)
     }
     
     // MARK: - Transfer
@@ -257,34 +249,5 @@ class AssetDownloadsSession {
         }
         
         return nil
-    }
-    
-    // MARK: - Report
-    
-    private func generateReport() {
-//        print("-------------------------------")
-//        print("-       Download Report       -")
-//        print("-------------------------------")
-//        print("Date: \(Date())")
-//        print("Operating in downloading mode: \(downloadingMode)")
-//        print("Number of items downloading: \(downloading.count)")
-//        print("Number of items waiting for download: \(waiting.count)")
-//        print("Number of items canceled for download: \(cancelled.count)")
-//
-//        print("")
-//        print("Items:")
-//
-//        let combined = downloading + waiting + cancelled
-//
-//        if combined.count > 0 {
-//            for assetDownloadItem in combined {
-//                let percentage = (assetDownloadItem.downloadPercentageComplete*10000).rounded()/100
-//                print("\(assetDownloadItem.url.absoluteString) (\(percentage)%) \(assetDownloadItem.status) \(assetDownloadItem.immediateDownload ? "forced" : "unforced")")
-//            }
-//        } else {
-//            print("Empty")
-//        }
-//
-//        print("")
     }
 }
