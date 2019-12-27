@@ -36,9 +36,9 @@ class AlbumCollectionViewCell: UICollectionViewCell {
                 if loadResult.asset == self?.thumbnailAsset {
                     self?.thumbnailImageView.image = loadResult.image
                 }
-            case .failure(let error):
+            case .failure(_):
                 //TODO: Handle
-                print(error)
+                break
             }
         }
     }

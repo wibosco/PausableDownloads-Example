@@ -37,9 +37,9 @@ class AlbumsViewController: UIViewController {
             case .success(let galleryAlbums):
                 self.galleryAlbums = galleryAlbums
                 self.collectionView.reloadData()
-            case .failure(let error):
+            case .failure(_):
                 //TODO: Handle error
-                print("\(error)")
+                break
             }
         }
     }

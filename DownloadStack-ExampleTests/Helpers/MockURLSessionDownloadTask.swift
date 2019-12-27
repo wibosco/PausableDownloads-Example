@@ -11,16 +11,11 @@ import Foundation
 @testable import DownloadStack_Example
 
 class MockURLSessionDownloadTask: URLSessionDownloadTaskType {
+    var progress: Progress = Progress()
     
-    var suspendClosure: (() -> ())?
     var resumeClosure: (() -> ())?
     var cancelClosure: (() -> ())?
-    
-    var currentRequest: URLRequest?
-    
-    func suspend() {
-        suspendClosure?()
-    }
+    var cancelByProducingResumeDataClosure: ((_ completionHandler: ((Data?) -> Void)) -> ())?
     
     func resume() {
         resumeClosure?()
@@ -28,5 +23,9 @@ class MockURLSessionDownloadTask: URLSessionDownloadTaskType {
     
     func cancel() {
         cancelClosure?()
+    }
+    
+    func cancel(byProducingResumeData completionHandler: @escaping (Data?) -> Void) {
+        cancelByProducingResumeDataClosure?(completionHandler)
     }
 }

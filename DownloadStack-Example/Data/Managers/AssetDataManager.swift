@@ -16,7 +16,7 @@ struct LoadAssetResult: Equatable {
 
 class AssetDataManager {
     
-    private let assetDownloadManager = AssetDownloadManager.shared
+    private let assetDownloadSession = AssetDownloadsSession.shared
     private let fileManager = FileManager.default
     
     // MARK: - GalleryAlbum
@@ -25,7 +25,7 @@ class AssetDataManager {
         if fileManager.fileExists(atPath: asset.cachedLocalAssetURL().path) {
             locallyLoadAsset(asset, completionHandler: completionHandler)
         } else {
-            remotelyLoadAsset(asset, forceDownload: false, completionHandler: completionHandler)
+            remotelyLoadAsset(asset, immediateDownload: false, completionHandler: completionHandler)
         }
     }
     
@@ -35,12 +35,12 @@ class AssetDataManager {
         if fileManager.fileExists(atPath: asset.cachedLocalAssetURL().path) {
             locallyLoadAsset(asset, completionHandler: completionHandler)
         } else {
-            remotelyLoadAsset(asset, forceDownload: true, completionHandler: completionHandler)
+            remotelyLoadAsset(asset, immediateDownload: true, completionHandler: completionHandler)
         }
     }
     
     func cancelLoadingGalleryItemAsset(_ asset: GalleryAsset) {
-        assetDownloadManager.cancelDownload(url: asset.url)
+        assetDownloadSession.cancelDownload(url: asset.url)
     }
     
     // MARK: - Asset
@@ -50,7 +50,7 @@ class AssetDataManager {
             let data = try Data(contentsOf: URL(fileURLWithPath: asset.cachedLocalAssetURL().path))
             
             guard let image = UIImage(data: data) else {
-                completionHandler(.failure(APIError.invalidData))
+                completionHandler(.failure(NetworkingError.invalidData(underlayingError: nil)))
                 return
             }
             
@@ -61,24 +61,24 @@ class AssetDataManager {
                 completionHandler(dataRequestResult)
             }
         } catch {
-            remotelyLoadAsset(asset, forceDownload: false, completionHandler: completionHandler)
+            remotelyLoadAsset(asset, immediateDownload: false, completionHandler: completionHandler)
         }
     }
     
-    private func remotelyLoadAsset(_ asset: GalleryAsset, forceDownload: Bool, completionHandler: @escaping ((_ result: Result<LoadAssetResult, Error>) -> ())) {
+    private func remotelyLoadAsset(_ asset: GalleryAsset, immediateDownload: Bool, completionHandler: @escaping ((_ result: Result<LoadAssetResult, Error>) -> ())) {
         
-        assetDownloadManager.scheduleDownload(url: asset.url, forceDownload: forceDownload) { (result) in
+        assetDownloadSession.scheduleDownload(url: asset.url, immediateDownload: immediateDownload) { (result) in
             switch result {
             case .success(let data):
                 guard let image = UIImage(data: data) else {
-                    completionHandler(.failure(APIError.invalidData))
+                    completionHandler(.failure(NetworkingError.invalidData(underlayingError: nil)))
                     return
                 }
                 
                 do {
                     try data.write(to: asset.cachedLocalAssetURL(), options: .atomic)
-                } catch {
-                    completionHandler(.failure(APIError.invalidData))
+                } catch let error {
+                    completionHandler(.failure(NetworkingError.invalidData(underlayingError: error)))
                 }
                 
                 let loadResult = LoadAssetResult(asset: asset, image: image)

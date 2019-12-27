@@ -26,20 +26,16 @@ class GalleryDataManager {
         let request = urlRequestFactory.requestToRetrieveGallerySearchResults(for: searchTerms)
         
         let task = session.dataTask(with: request) { (data: Data?, response: URLResponse?, error: Error?) in
-            
-            if error != nil || data == nil {
+            guard let data = data else {
                 DispatchQueue.main.async {
-                    if error != nil {
-                         completionHandler(searchTerms, Result.failure(error!))
-                    } else {
-                        completionHandler(searchTerms, Result.failure(APIError.missingData))
-                    }
+                    let retrievalError = NetworkingError.retrieval(underlayingError: error)
+                    completionHandler(searchTerms, Result.failure(retrievalError))
                 }
                 return
             }
 
             do {
-                let json = try JSONSerialization.jsonObject(with: data!, options: .mutableContainers) as! [String: Any]
+                let json = try JSONSerialization.jsonObject(with: data, options: .mutableContainers) as! [String: Any]
 
                 let parser = GalleryAlbumParser()
                 let galleryAlbums = parser.parseResponse(json)
@@ -47,9 +43,10 @@ class GalleryDataManager {
                 DispatchQueue.main.async {
                     completionHandler(searchTerms, Result.success(galleryAlbums))
                 }
-            } catch {
+            } catch let error {
                 DispatchQueue.main.async {
-                    completionHandler(searchTerms, Result.failure(APIError.serialization))
+                    let invalidError = NetworkingError.invalidData(underlayingError: error)
+                    completionHandler(searchTerms, Result.failure(invalidError))
                 }
             }
         }

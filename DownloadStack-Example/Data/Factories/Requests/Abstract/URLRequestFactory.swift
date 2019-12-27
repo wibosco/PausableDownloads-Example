@@ -8,11 +8,10 @@
 
 import Foundation
 
-enum APIError: Error {
+enum NetworkingError: Error {
     case unknown
-    case missingData
-    case serialization
-    case invalidData
+    case retrieval(underlayingError: Error?)
+    case invalidData(underlayingError: Error?)
 }
 
 class URLRequestFactory {

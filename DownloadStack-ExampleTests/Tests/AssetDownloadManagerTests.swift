@@ -12,27 +12,27 @@ import XCTest
 
 class AssetDownloadManagerTests: XCTestCase {
 
-    var sut: AssetDownloadManager!
-    
-    var sessionFactory: MockURLSessionFactory!
-    var session: MockURLSession!
+//    var sut: AssetDownloadManager!
+//
+//    var sessionFactory: MockURLSessionFactory!
+//    var session: MockURLSession!
     
     // MARK: - Lifecycle
     
     override func setUp() {
         super.setUp()
-        sessionFactory = MockURLSessionFactory()
-        session = MockURLSession()
-        sessionFactory.defaultSession = session
-        
-        sut = AssetDownloadManager(urlSessionFactory: sessionFactory)
+//        sessionFactory = MockURLSessionFactory()
+//        session = MockURLSession()
+//        sessionFactory.defaultSession = session
+//
+//        sut = AssetDownloadManager(urlSessionFactory: sessionFactory)
     }
     
     override func tearDown() {
-        sessionFactory = nil
-        session = nil
-        
-        sut = nil
+//        sessionFactory = nil
+//        session = nil
+//        
+//        sut = nil
     
         super.tearDown()
     }
@@ -45,7 +45,7 @@ class AssetDownloadManagerTests: XCTestCase {
 //        let manager = AssetDownloadManager()
 //
 //        let url = URL(string: "http://test.com")!
-//        sut.scheduleDownload(url: url, forceDownload: false) { _ in }
+//        sut.scheduleDownload(url: url, immediateDownload: false) { _ in }
 //
 //        XCTAssertTrue(manager.downloading.count == 1)
 //        XCTAssertTrue(manager.paused.count == 0)
@@ -56,10 +56,10 @@ class AssetDownloadManagerTests: XCTestCase {
 //        let manager = AssetDownloadManager()
 //
 //        let urlA = URL(string: "http://testA.com")!
-//        manager.scheduleDownload(url: urlA, forceDownload: false) { _ in }
+//        manager.scheduleDownload(url: urlA, immediateDownload: false) { _ in }
 //
 //        let urlB = URL(string: "http://testB.com")!
-//        manager.scheduleDownload(url: urlB, forceDownload: false) { _ in }
+//        manager.scheduleDownload(url: urlB, immediateDownload: false) { _ in }
 //
 //        XCTAssertTrue(manager.downloading.count == 2)
 //        XCTAssertTrue(manager.paused.count == 0)
@@ -72,26 +72,26 @@ class AssetDownloadManagerTests: XCTestCase {
 //        AssetDownloadManager.maximumConcurrentDownloadsResetValue = 1
 //
 //        let urlA = URL(string: "http://testA.com")!
-//        manager.scheduleDownload(url: urlA, forceDownload: false) { _ in }
+//        manager.scheduleDownload(url: urlA, immediateDownload: false) { _ in }
 //
 //        let urlB = URL(string: "http://testB.com")!
-//        manager.scheduleDownload(url: urlB, forceDownload: false) { _ in }
+//        manager.scheduleDownload(url: urlB, immediateDownload: false) { _ in }
 //
 //        XCTAssertTrue(manager.downloading.count == 1)
 //        XCTAssertTrue(manager.paused.count == 1)
 //        XCTAssertTrue(manager.softCancelled.count == 0)
     }
     
-    func test_scheduleDownload_forceDownload() {
+    func test_scheduleDownload_immediateDownload() {
 //        let manager = AssetDownloadManager()
 //        let urlA = URL(string: "http://testA.com")!
-//        manager.scheduleDownload(url: urlA, forceDownload: false) { _ in }
+//        manager.scheduleDownload(url: urlA, immediateDownload: false) { _ in }
 //
 //        let urlB = URL(string: "http://testB.com")!
-//        manager.scheduleDownload(url: urlB, forceDownload: false) { _ in }
+//        manager.scheduleDownload(url: urlB, immediateDownload: false) { _ in }
 //
 //        let urlC = URL(string: "http://testC.com")!
-//        manager.scheduleDownload(url: urlC, forceDownload: true) { _ in }
+//        manager.scheduleDownload(url: urlC, immediateDownload: true) { _ in }
 //
 //        XCTAssertTrue(manager.downloading.count == 1)
 //        XCTAssertTrue(manager.paused.count == 2)
@@ -99,30 +99,30 @@ class AssetDownloadManagerTests: XCTestCase {
 //
 //        let item = manager.downloading.last!
 //        XCTAssertEqual(item.url, urlC)
-//        XCTAssertTrue(item.forceDownload)
+//        XCTAssertTrue(item.immediateDownload)
     }
     
     func test_scheduleDownload_coalesceCurrentlyDownloading() {
 //        let manager = AssetDownloadManager()
 //
 //        let url = URL(string: "http://testA.com")!
-//        manager.scheduleDownload(url: url, forceDownload: false) { _ in }
-//        manager.scheduleDownload(url: url, forceDownload: false) { _ in }
+//        manager.scheduleDownload(url: url, immediateDownload: false) { _ in }
+//        manager.scheduleDownload(url: url, immediateDownload: false) { _ in }
 //
 //        XCTAssertTrue(manager.downloading.count == 1)
 //        XCTAssertTrue(manager.paused.count == 0)
 //        XCTAssertTrue(manager.softCancelled.count == 0)
     }
     
-    func test_scheduleDownload_coalesceCurrentlyDownloadingAndForceDownload() {
+    func test_scheduleDownload_coalesceCurrentlyDownloadingAndImmediateDownload() {
 //        let manager = AssetDownloadManager()
 //
 //        let urlA = URL(string: "http://testA.com")!
-//        manager.scheduleDownload(url: urlA, forceDownload: false) { _ in }
+//        manager.scheduleDownload(url: urlA, immediateDownload: false) { _ in }
 //
 //        let urlB = URL(string: "http://testB.com")!
-//        manager.scheduleDownload(url: urlB, forceDownload: false) { _ in }
-//        manager.scheduleDownload(url: urlB, forceDownload: true) { _ in }
+//        manager.scheduleDownload(url: urlB, immediateDownload: false) { _ in }
+//        manager.scheduleDownload(url: urlB, immediateDownload: true) { _ in }
 //
 //        XCTAssertTrue(manager.downloading.count == 1)
 //        XCTAssertTrue(manager.paused.count == 1)
@@ -130,7 +130,7 @@ class AssetDownloadManagerTests: XCTestCase {
 //
 //        let item = manager.downloading.last!
 //        XCTAssertEqual(item.url, urlB)
-//        XCTAssertTrue(item.forceDownload)
+//        XCTAssertTrue(item.immediateDownload)
     }
     
     func test_scheduleDownload_coalesceWaitingDownloading() {
@@ -140,11 +140,11 @@ class AssetDownloadManagerTests: XCTestCase {
 //        AssetDownloadManager.maximumConcurrentDownloadsResetValue = 1
 //
 //        let urlA = URL(string: "http://testA.com")!
-//        manager.scheduleDownload(url: urlA, forceDownload: false) { _ in }
+//        manager.scheduleDownload(url: urlA, immediateDownload: false) { _ in }
 //
 //        let urlB = URL(string: "http://testB.com")!
-//        manager.scheduleDownload(url: urlB, forceDownload: false) { _ in }
-//        manager.scheduleDownload(url: urlB, forceDownload: false) { _ in }
+//        manager.scheduleDownload(url: urlB, immediateDownload: false) { _ in }
+//        manager.scheduleDownload(url: urlB, immediateDownload: false) { _ in }
 //
 //        XCTAssertTrue(manager.downloading.count == 1)
 //        XCTAssertTrue(manager.paused.count == 1)
@@ -158,15 +158,15 @@ class AssetDownloadManagerTests: XCTestCase {
 //        AssetDownloadManager.maximumConcurrentDownloadsResetValue = 1
 //
 //        let urlA = URL(string: "http://testA.com")!
-//        manager.scheduleDownload(url: urlA, forceDownload: false) { _ in }
+//        manager.scheduleDownload(url: urlA, immediateDownload: false) { _ in }
 //
 //        let urlB = URL(string: "http://testB.com")!
-//        manager.scheduleDownload(url: urlB, forceDownload: false) { _ in }
+//        manager.scheduleDownload(url: urlB, immediateDownload: false) { _ in }
 //
 //        let urlC = URL(string: "http://testC.com")!
-//        manager.scheduleDownload(url: urlC, forceDownload: false) { _ in }
+//        manager.scheduleDownload(url: urlC, immediateDownload: false) { _ in }
 //
-//        manager.scheduleDownload(url: urlB, forceDownload: false) { _ in }
+//        manager.scheduleDownload(url: urlB, immediateDownload: false) { _ in }
 //
 //        XCTAssertTrue(manager.downloading.count == 1)
 //        XCTAssertTrue(manager.paused.count == 2)
@@ -176,7 +176,7 @@ class AssetDownloadManagerTests: XCTestCase {
 //        XCTAssertEqual(item?.url, urlB)
     }
     
-    func test_scheduleDownload_coalesceCurrentlyWaitingAndForceDownload() {
+    func test_scheduleDownload_coalesceCurrentlyWaitingAndImmediateDownload() {
 //        let manager = AssetDownloadManager()
 //
 //        manager.maximumConcurrentDownloads = 1
@@ -189,7 +189,7 @@ class AssetDownloadManagerTests: XCTestCase {
 //        let itemB = assetDownloadItem(forURL: urlB)
 //        manager.paused.append(itemB)
 //
-//        manager.scheduleDownload(url: urlB, forceDownload: true) { _ in }
+//        manager.scheduleDownload(url: urlB, immediateDownload: true) { _ in }
 //
 //        XCTAssertTrue(manager.downloading.count == 1)
 //        XCTAssertTrue(manager.paused.count == 1)
@@ -197,7 +197,7 @@ class AssetDownloadManagerTests: XCTestCase {
 //
 //        let item = manager.downloading.last!
 //        XCTAssertEqual(item.url, urlB)
-//        XCTAssertTrue(item.forceDownload)
+//        XCTAssertTrue(item.immediateDownload)
     }
     
     func test_scheduleDownload_resurrectCanceledDownload() {
@@ -210,27 +210,27 @@ class AssetDownloadManagerTests: XCTestCase {
 //        let item = AssetDownloadItem(task: urlSessionDownloadTaskSpy)
 //        manager.softCancelled.append(item)
 //
-//        manager.scheduleDownload(url: url, forceDownload: false) { _ in }
+//        manager.scheduleDownload(url: url, immediateDownload: false) { _ in }
 //
 //        XCTAssertTrue(manager.downloading.count == 1)
 //        XCTAssertTrue(manager.paused.count == 0)
 //        XCTAssertTrue(manager.softCancelled.count == 0)
     }
     
-    func test_scheduleDownload_resurrectCanceledDownloadAndForceDownload() {
+    func test_scheduleDownload_resurrectCanceledDownloadAndImmediateDownload() {
 //        let manager = AssetDownloadManager()
 //        manager.maximumConcurrentDownloads = 1
 //        AssetDownloadManager.maximumConcurrentDownloadsResetValue = 1
 //
 //        let urlA = URL(string: "http://testA.com")!
-//        manager.scheduleDownload(url: urlA, forceDownload: false) { _ in }
+//        manager.scheduleDownload(url: urlA, immediateDownload: false) { _ in }
 //
 //        manager.cancelDownload(url: urlA)
 //
 //        let urlB = URL(string: "http://testB.com")!
-//        manager.scheduleDownload(url: urlB, forceDownload: false) { _ in }
+//        manager.scheduleDownload(url: urlB, immediateDownload: false) { _ in }
 //
-//        manager.scheduleDownload(url: urlA, forceDownload: true) { _ in }
+//        manager.scheduleDownload(url: urlA, immediateDownload: true) { _ in }
 //
 //        XCTAssertTrue(manager.downloading.count == 1)
 //        XCTAssertTrue(manager.paused.count == 1)
@@ -238,7 +238,7 @@ class AssetDownloadManagerTests: XCTestCase {
 //
 //        let item = manager.downloading.last!
 //        XCTAssertEqual(item.url, urlA)
-//        XCTAssertTrue(item.forceDownload)
+//        XCTAssertTrue(item.immediateDownload)
     }
     
     // MARK: Cancel
@@ -247,7 +247,7 @@ class AssetDownloadManagerTests: XCTestCase {
 //        let manager = AssetDownloadManager()
 //
 //        let urlA = URL(string: "http://testA.com")!
-//        manager.scheduleDownload(url: urlA, forceDownload: true) { _ in }
+//        manager.scheduleDownload(url: urlA, immediateDownload: true) { _ in }
 //
 //        manager.cancelDownload(url: urlA)
 //
@@ -262,10 +262,10 @@ class AssetDownloadManagerTests: XCTestCase {
 //        AssetDownloadManager.maximumConcurrentDownloadsResetValue = 1
 //
 //        let urlA = URL(string: "http://testA.com")!
-//        manager.scheduleDownload(url: urlA, forceDownload: true) { _ in }
+//        manager.scheduleDownload(url: urlA, immediateDownload: true) { _ in }
 //
 //        let urlB = URL(string: "http://testB.com")!
-//        manager.scheduleDownload(url: urlB, forceDownload: true) { _ in }
+//        manager.scheduleDownload(url: urlB, immediateDownload: true) { _ in }
 //
 //        manager.cancelDownload(url: urlA)
 //
@@ -280,10 +280,10 @@ class AssetDownloadManagerTests: XCTestCase {
 //        AssetDownloadManager.maximumConcurrentDownloadsResetValue = 1
 //        
 //        let urlA = URL(string: "http://testA.com")!
-//        manager.scheduleDownload(url: urlA, forceDownload: true) { _ in }
+//        manager.scheduleDownload(url: urlA, immediateDownload: true) { _ in }
 //        
 //        let urlB = URL(string: "http://testB.com")!
-//        manager.scheduleDownload(url: urlB, forceDownload: true) { _ in }
+//        manager.scheduleDownload(url: urlB, immediateDownload: true) { _ in }
 //        
 //        XCTAssertTrue(manager.paused.count == 1)
 //        

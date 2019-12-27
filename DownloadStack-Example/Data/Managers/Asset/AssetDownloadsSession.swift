@@ -9,6 +9,8 @@
 import UIKit
 import os
 
+typealias AssetDownloadCompletionHandler = ((_ result: Result<Data, Error>) -> Void)
+
 enum DownloadingMode: CustomStringConvertible {
     case single
     case multiple
@@ -38,7 +40,11 @@ class AssetDownloadsSession {
     private var waiting = [AssetDownloadItemType]()
     private var cancelled = [AssetDownloadItemType]()
     
+    private let accessQueue = DispatchQueue(label: "com.williamboles.downloadstack.downloadssession")
+    
     private let notificationCenter: NotificationCenterType
+    private let assetDownloadItemFactory: AssetDownloadItemFactoryType
+    private let session: URLSessionType
     
     var downloadingMode: DownloadingMode {
         if (downloading.first?.immediateDownload ?? false) || (waiting.last?.immediateDownload ?? false) {
@@ -48,10 +54,16 @@ class AssetDownloadsSession {
         return .multiple
     }
     
+    // MARK: - Singleton
+    
+    static let shared = AssetDownloadsSession()
+    
     // MARK: - Init
     
-    init(notificationCenter: NotificationCenterType = NotificationCenter.default) {
+    init(urlSessionFactory: URLSessionFactoryType = URLSessionFactory(), assetDownloadItemFactory: AssetDownloadItemFactoryType = AssetDownloadItemFactory(), notificationCenter: NotificationCenterType = NotificationCenter.default) {
+        self.assetDownloadItemFactory = assetDownloadItemFactory
         self.notificationCenter = notificationCenter
+        self.session = urlSessionFactory.defaultSession()
             
         registerForNotifications()
     }
@@ -65,116 +77,141 @@ class AssetDownloadsSession {
     }
     
     private func hardCancellSoftCancelledDownloads() {
-        os_log(.info, "Hard cancelling %{public}d items", cancelled.count)
-        
-        for downloadAssetItem in cancelled {
-            downloadAssetItem.hardCancel()
+        accessQueue.sync {
+            os_log(.info, "Hard cancelling %{public}d items", cancelled.count)
+            
+            for downloadAssetItem in cancelled {
+                downloadAssetItem.cancel()
+            }
+            
+            cancelled.removeAll()
         }
-        
-        cancelled.removeAll()
     }
     
     // MARK: - Addition
     
-    func insert(assetDownloadItem: AssetDownloadItemType) {
-        if let (_, existingAssetDownloadItem) = downloadingAssetDownloadItem(withURL: assetDownloadItem.url) {
-            os_log(.info, "Found existing active download so coalescing them")
-            existingAssetDownloadItem.coalesce(assetDownloadItem)
-        } else if let (_, existingAssetDownloadItem) = waitingAssetDownloadItem(withURL: assetDownloadItem.url) {
-            os_log(.info, "Found existing waitingg download so coalescing them")
-            existingAssetDownloadItem.coalesce(assetDownloadItem)
-            // Move download item to the front of the waiting stack
-            moveAssetDownloadItemToFrontOfWaiting(assetDownloadItem)
-        } else if let (_, existingAssetDownloadItem) = cancelledAssetDownloadItem(withURL: assetDownloadItem.url) {
-            os_log(.info, "Found existing soft-cancelled download so reviving download")
-            //as the download was cancelled no need to coalesce - just override
-            existingAssetDownloadItem.completionHandler = assetDownloadItem.completionHandler
-            existingAssetDownloadItem.immediateDownload = assetDownloadItem.immediateDownload
+    func scheduleDownload(url: URL, immediateDownload: Bool, completionHandler: @escaping ((_ result: Result<Data, Error>) -> ())) {
+        accessQueue.sync {
+            if immediateDownload {
+                pauseAllDownloads()
+            }
             
-            // Add to front of waiting stack
-            transferFromCancelledToWaiting(assetDownloadItem: existingAssetDownloadItem)
-        } else {
-            os_log(.info, "New download")
-            // Add to front of waiting stack
-            waiting.append(assetDownloadItem)
+            let assetDownloadItem = assetDownloadItemFactory.assetDownloadItem(forURL: url, session: session, immediateDownload: immediateDownload) { (assetDownloadItem, result) in
+                self.accessQueue.sync {
+                    self.finishedDownload(ofAssetDownloadItem: assetDownloadItem)
+                    self.startDownloads()
+                }
+
+                completionHandler(result)
+            }
+            
+            if let (_, existingAssetDownloadItem) = downloadingAssetDownloadItem(withURL: assetDownloadItem.url) {
+                os_log(.info, "Found existing active download so coalescing them for: %{public}@", assetDownloadItem.description)
+                existingAssetDownloadItem.coalesce(assetDownloadItem)
+            } else if let (_, existingAssetDownloadItem) = waitingAssetDownloadItem(withURL: assetDownloadItem.url) {
+                os_log(.info, "Found existing waiting download so coalescing them for: %{public}@", assetDownloadItem.description)
+                existingAssetDownloadItem.coalesce(assetDownloadItem)
+                // Move download item to the front of the waiting stack
+                moveAssetDownloadItemToFrontOfWaiting(assetDownloadItem)
+            } else if let (_, existingAssetDownloadItem) = cancelledAssetDownloadItem(withURL: assetDownloadItem.url) {
+                os_log(.info, "Found existing soft-cancelled download so reviving download for: %{public}@", assetDownloadItem.description)
+                //as the download was cancelled no need to coalesce - just override
+                existingAssetDownloadItem.completionHandler = assetDownloadItem.completionHandler
+                existingAssetDownloadItem.immediateDownload = assetDownloadItem.immediateDownload
+                
+                // Add to front of waiting stack
+                transferFromCancelledToWaiting(assetDownloadItem: existingAssetDownloadItem)
+            } else {
+                os_log(.info, "Adding new download: %{public}@", assetDownloadItem.description)
+                // Add to front of waiting stack
+                waiting.append(assetDownloadItem)
+            }
+            
+            startDownloads()
         }
     }
     
     // MARK: - Cancel
     
     func cancelDownload(url: URL) {
-        var assetDownloadItemToBeSuspended: AssetDownloadItemType?
-        
-        if let (index, assetDownloadItem) = downloadingAssetDownloadItem(withURL: url) {
-            assetDownloadItemToBeSuspended = assetDownloadItem
-            downloading.remove(at: index)
-        } else if let (index, assetDownloadItem) = waitingAssetDownloadItem(withURL: url) {
-            assetDownloadItemToBeSuspended = assetDownloadItem
-            waiting.remove(at: index)
-        }
-        
-        if let assetDownloadItem = assetDownloadItemToBeSuspended {
-            assetDownloadItem.softCancel()
-            cancelled.append(assetDownloadItem)
+        accessQueue.sync {
+            var assetDownloadItemToBeSuspended: AssetDownloadItemType?
             
-            os_log(.info, "Cancelled download: %{public}@)", assetDownloadItem.description)
+            if let (index, assetDownloadItem) = downloadingAssetDownloadItem(withURL: url) {
+                assetDownloadItemToBeSuspended = assetDownloadItem
+                downloading.remove(at: index)
+            } else if let (index, assetDownloadItem) = waitingAssetDownloadItem(withURL: url) {
+                assetDownloadItemToBeSuspended = assetDownloadItem
+                waiting.remove(at: index)
+            }
+            
+            if let assetDownloadItem = assetDownloadItemToBeSuspended {
+                assetDownloadItem.pause()
+                cancelled.append(assetDownloadItem)
+                
+                os_log(.info, "Cancelled download: %{public}@", assetDownloadItem.description)
+            }
+            
+            //Start next downloads
+            startDownloads()
         }
     }
     
     // MARK: - Pause
     
-    func pauseAllDownloads() {
+    private func pauseAllDownloads() {
         guard downloading.count > 0 else {
             return
         }
         
-        os_log(.info, "Pausing all downloads")
+        os_log(.info, "Pausing %{public}d active downloads", downloading.count)
         
         for assetDownloadItem in downloading.reversed() {
             assetDownloadItem.pause()
             transferFromDownloadingToWaiting(assetDownloadItem: assetDownloadItem)
         }
-        
-        os_log(.info, "Currently paused the download of %{public}d assets", waiting.count)
     }
     
     // MARK: - Resume
     
-    func startDownloads() {
+    private func startDownloads() {
         guard waiting.count > 0 else {
-            os_log(.info, "Downloading %{public}d assets", downloading.count)
             return
         }
-        
-        os_log(.info, "Starting downloads in %{public}@ mode with %{public}d assets to download", downloadingMode.description, waiting.count)
         
         switch downloadingMode {
         case .multiple:
             let assetDownloadItems = waiting.reversed() as [AssetDownloadItemType]
-            startDownloading(assetDownloadItems: assetDownloadItems)
-            waiting.removeAll()
+            if assetDownloadItems.count > 0 {
+                startDownloading(assetDownloadItems: assetDownloadItems)
+                waiting.removeAll()
+            }
         case .single:
             if let assetDownloadItem = waiting.last {
-                startDownloading(assetDownloadItems: [assetDownloadItem])
-                waiting.removeLast()
+                if assetDownloadItem.immediateDownload {
+                    startDownloading(assetDownloadItems: [assetDownloadItem])
+                    waiting.removeLast()
+                }
             }
+        }
+    }
+    
+    private func startDownloading(assetDownloadItems: [AssetDownloadItemType]) {
+        os_log(.info, "Operating in %{public}@ mode", downloadingMode.description)
+        
+        for assetDownloadItem in assetDownloadItems {
+            downloading.append(assetDownloadItem)
+            assetDownloadItem.resume()
+            
+            os_log(.info, "Started downloading of: %{public}@", assetDownloadItem.description)
         }
         
         os_log(.info, "Currently downloading %{public}d assets", downloading.count)
     }
     
-    private func startDownloading(assetDownloadItems: [AssetDownloadItemType]) {
-        for assetDownloadItem in assetDownloadItems {
-            downloading.append(assetDownloadItem)
-            assetDownloadItem.resume()
-            
-            os_log(.info, "Started downloading: %{public}@", assetDownloadItem.description)
-        }
-    }
-    
     // MARK: - Finish
     
-    func finishedDownload(ofAssetDownloadItem assetDownloadItem: AssetDownloadItemType) {
+    private func finishedDownload(ofAssetDownloadItem assetDownloadItem: AssetDownloadItemType) {
         guard let index = downloading.firstIndex(where: { $0.url == assetDownloadItem.url })  else {
             return
         }
@@ -182,7 +219,8 @@ class AssetDownloadsSession {
         assetDownloadItem.done()
         downloading.remove(at: index)
         
-        os_log(.info, "Finish downloading: %{public}@", assetDownloadItem.description)
+        os_log(.info, "Finished download of: %{public}@", assetDownloadItem.description)
+        os_log(.info, "Currently downloading %{public}d assets", downloading.count)
     }
     
     // MARK: - Transfer
@@ -236,18 +274,5 @@ class AssetDownloadsSession {
     
     private func cancelledAssetDownloadItem(withURL url: URL) -> (Int, AssetDownloadItemType)? {
         return assetDownloadItem(withURL: url, in: cancelled)
-    }
-    
-    func assetDownloadItem(withURLSessionTask sessionTask: URLSessionTask) -> AssetDownloadItemType? {
-        guard let url = sessionTask.currentRequest?.url else {
-            return nil
-        }
-        
-        let combined = downloading + waiting + cancelled
-        if let (_, foundAssetDownloadItem) = assetDownloadItem(withURL: url, in: combined) {
-            return foundAssetDownloadItem
-        }
-        
-        return nil
     }
 }

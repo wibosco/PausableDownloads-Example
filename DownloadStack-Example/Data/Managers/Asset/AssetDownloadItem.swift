@@ -7,11 +7,11 @@
 //
 
 import Foundation
+import os
 
-typealias AssetDownloadItemCompletionHandler = ((_ result: Result<Data, Error>) -> Void)
+typealias AssetDownloadItemCompletionHandler = ((_ assetDownloadItem: AssetDownloadItemType, _ result: Result<Data, Error>) -> ())
 
 enum Status: CustomStringConvertible {
-    case waiting
     case downloading
     case suspended
     case cancelled
@@ -21,8 +21,6 @@ enum Status: CustomStringConvertible {
     
     var description: String {
         switch self {
-        case .waiting:
-            return "Waiting"
         case .downloading:
             return "Downloading"
         case .suspended:
@@ -38,67 +36,106 @@ enum Status: CustomStringConvertible {
 protocol AssetDownloadItemType: class, CustomStringConvertible {
     var completionHandler: AssetDownloadItemCompletionHandler? { get set }
     var immediateDownload: Bool { get set }
-    var downloadPercentageComplete: Double { get set }
     var status: Status { get }
     var url: URL { get }
     
     func resume()
     func pause()
-    func softCancel()
-    func hardCancel()
+    func cancel()
     func done()
     func coalesce(_ otherAssetDownloadItem: AssetDownloadItemType)
 }
 
 class AssetDownloadItem: AssetDownloadItemType {
 
-    private let task: URLSessionDownloadTaskType
+    private let session: URLSessionType
+    
+    private var resumeData: Data?
+    private var downloadTask: URLSessionDownloadTaskType?
+    private var observation: NSKeyValueObservation?
     
     var completionHandler: AssetDownloadItemCompletionHandler?
     
+    let url: URL
     var immediateDownload = false
-    var downloadPercentageComplete = 0.0
-    private(set) var status: Status = .waiting
-    
-    var url: URL {
-        return task.currentRequest!.url!
-    }
-    
+    private(set) var status: Status = .suspended
+
     var description: String {
-        let percentage = (downloadPercentageComplete * 100).rounded()
-        let immediate = immediateDownload ? "Yes" : "No"
-        return "URL: \(url.absoluteString), status: \(status), immeediate download: \(immediate), percentage completed: \(percentage)%"
+        return url.absoluteString
     }
     
     // MARK: - Init
     
-    init(task: URLSessionDownloadTaskType) {
-        self.task = task
+    init(session: URLSessionType, url: URL) {
+        self.session = session
+        self.url = url
+    }
+    
+    deinit {
+        observation?.invalidate()
     }
     
     // MARK: - Lifecycle
     
     func resume() {
+        downloadTask = nil
+        observation?.invalidate()
+
         status = .downloading
-        task.resume()
+        
+        if let resumeData = resumeData {
+            downloadTask = session.downloadTask(withResumeData: resumeData, completionHandler: downloadTaskCompletionHandler)
+        } else {
+            downloadTask = session.downloadTask(with: url, completionHandler: downloadTaskCompletionHandler)
+        }
+        
+        observation = downloadTask?.progress.observe(\.fractionCompleted, options: [.new]) { [weak self] (progress, _) in
+            os_log(.info, "Downloaded %{public}.02f%% of %{public}@", (progress.fractionCompleted * 100), self?.url.absoluteString ?? "")
+        }
+        
+        downloadTask?.resume()
+    }
+    
+    private func downloadTaskCompletionHandler(url: URL?, response: URLResponse?, error: Error?) {
+        DispatchQueue.main.sync {
+            if let error = error, (error as NSError).code == NSURLErrorCancelled, status == .suspended {
+                //Download cancelled due to pausing so eat the error
+                return
+            }
+            
+            guard let url = url else {
+                completionHandler?(self, .failure(NetworkingError.retrieval(underlayingError: error)))
+                return
+            }
+
+            do {
+                let data = try Data(contentsOf: url)
+
+                completionHandler?(self, .success(data))
+            } catch let error {
+                completionHandler?(self, .failure(NetworkingError.invalidData(underlayingError: error)))
+            }
+        }
     }
     
     func pause() {
-        status = .waiting
-        immediateDownload = false
-        task.suspend()
-    }
-    
-    func softCancel() {
         status = .suspended
+        softCancel()
+    }
+
+    private func softCancel() {
         immediateDownload = false
-        task.suspend()
+        
+        downloadTask?.cancel(byProducingResumeData: { [weak self] (data) in
+            self?.resumeData = data
+        })
     }
     
-    func hardCancel() {
+    func cancel() {
         status = .cancelled
         immediateDownload = false
-        task.cancel()
+        
+        downloadTask?.cancel()
     }
     
     func done() {
@@ -114,18 +151,18 @@ class AssetDownloadItem: AssetDownloadItemType {
         
         let initalCompletionHandler = completionHandler
         
-        completionHandler = { (result) in
+        completionHandler = { (_, result) in
             if let initalCompletionClosure = initalCompletionHandler {
-                initalCompletionClosure(result)
+                initalCompletionClosure(self, result)
             }
             
-            otherAssetDownloadItem.completionHandler?(result)
+            otherAssetDownloadItem.completionHandler?(otherAssetDownloadItem, result)
         }
     }
 }
 
-extension AssetDownloadItem: Equatable {
-    static func == (lhs: AssetDownloadItem, rhs: AssetDownloadItem) -> Bool {
-        return lhs.url == rhs.url
-    }
-}
+//extension AssetDownloadItem: Equatable {
+//    static func == (lhs: AssetDownloadItem, rhs: AssetDownloadItem) -> Bool {
+//        return lhs.url == rhs.url
+//    }
+//}

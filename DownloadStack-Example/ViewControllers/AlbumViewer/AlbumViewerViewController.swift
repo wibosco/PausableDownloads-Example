@@ -88,9 +88,9 @@ class AlbumViewerViewController: UIViewController {
                     strongSelf.loadingActivityIndicator.stopAnimating()
                     strongSelf.assetImageView.image = loadResult.image
                 }
-            case .failure(let error):
+            case .failure(_):
                 //TODO: Handle
-                print(error)
+                break
             }
         }
     }

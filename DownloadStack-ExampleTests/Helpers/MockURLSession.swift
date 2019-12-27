@@ -11,12 +11,19 @@ import Foundation
 @testable import DownloadStack_Example
 
 class MockURLSession: URLSessionType {
-    
+
     var downloadTask: MockURLSessionDownloadTask = MockURLSessionDownloadTask()
-    var downloadTaskClosure: ((_ url: URL) -> ())?
+    var downloadTaskClosure: ((_ url: URL, _ completionHandler: @escaping ((URL?, URLResponse?, Error?) -> Void)) -> ())?
+    var downloadTaskWithResumeDataClosure: ((_ resumeData: Data, _ completionHandler: @escaping ((URL?, URLResponse?, Error?) -> Void)) -> ())?
     
-    func downloadTask(with url: URL) -> URLSessionDownloadTaskType {
-        downloadTaskClosure?(url)
+    func downloadTask(with url: URL, completionHandler: @escaping (URL?, URLResponse?, Error?) -> Void) -> URLSessionDownloadTaskType {
+        downloadTaskClosure?(url, completionHandler)
+        
+        return downloadTask
+    }
+    
+    func downloadTask(withResumeData resumeData: Data, completionHandler: @escaping (URL?, URLResponse?, Error?) -> Void) -> URLSessionDownloadTaskType {
+        downloadTaskWithResumeDataClosure?(resumeData, completionHandler)
         
         return downloadTask
     }
