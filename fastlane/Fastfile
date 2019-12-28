@@ -7,7 +7,7 @@ platform :ios do
 
   lane :run_unit_tests do
     scan(
-      scheme: 'DownloadStack-Example',
+      scheme: 'UnequalDownloads-Example',
       skip_build: true
     )
   end
