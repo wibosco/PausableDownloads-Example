@@ -15,8 +15,7 @@ protocol AssetDownloadItemFactoryType {
 class AssetDownloadItemFactory: AssetDownloadItemFactoryType {
     
     func assetDownloadItem(forURL url: URL, session: URLSessionType, immediateDownload: Bool, completionHandler: @escaping AssetDownloadItemCompletionHandler) -> AssetDownloadItemType {
-        let assetDownloadItem = AssetDownloadItem(session: session, url: url)
-        assetDownloadItem.immediateDownload = immediateDownload
+        let assetDownloadItem = AssetDownloadItem(session: session, url: url, immediateDownload: immediateDownload)
         assetDownloadItem.completionHandler = completionHandler
         
         return assetDownloadItem

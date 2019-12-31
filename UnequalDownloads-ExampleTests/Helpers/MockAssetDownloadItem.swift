@@ -13,7 +13,7 @@ import Foundation
 class MockAssetDownloadItem: AssetDownloadItemType {
     var completionHandler: AssetDownloadItemCompletionHandler?
     var immediateDownload: Bool = false
-    var status: Status = .suspended
+    var status: Status = .paused
     var url: URL = URL(string: "http://www.test.com/example")!
     var description: String = "description"
     

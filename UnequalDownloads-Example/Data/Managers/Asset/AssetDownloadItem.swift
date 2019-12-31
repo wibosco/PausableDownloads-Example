@@ -13,7 +13,7 @@ typealias AssetDownloadItemCompletionHandler = ((_ assetDownloadItem: AssetDownl
 
 enum Status: CustomStringConvertible {
     case downloading
-    case suspended
+    case paused
     case cancelled
     case done
     
@@ -23,8 +23,8 @@ enum Status: CustomStringConvertible {
         switch self {
         case .downloading:
             return "Downloading"
-        case .suspended:
-            return "Suspended"
+        case .paused:
+            return "Paused"
         case .cancelled:
             return "Cancelled"
         case .done:
@@ -57,8 +57,8 @@ class AssetDownloadItem: AssetDownloadItemType {
     var completionHandler: AssetDownloadItemCompletionHandler?
     
     let url: URL
-    var immediateDownload = false
-    private(set) var status: Status = .suspended
+    var immediateDownload: Bool
+    private(set) var status: Status = .paused
 
     var description: String {
         return url.absoluteString
@@ -66,9 +66,10 @@ class AssetDownloadItem: AssetDownloadItemType {
     
     // MARK: - Init
     
-    init(session: URLSessionType, url: URL) {
+    init(session: URLSessionType, url: URL, immediateDownload: Bool) {
         self.session = session
         self.url = url
+        self.immediateDownload = immediateDownload
     }
     
     deinit {
@@ -99,29 +100,29 @@ class AssetDownloadItem: AssetDownloadItemType {
     }
     
     private func downloadTaskCompletionHandler(url: URL?, response: URLResponse?, error: Error?) {
-        DispatchQueue.main.sync {
-            if let error = error, (error as NSError).code == NSURLErrorCancelled, status == .suspended {
+        DispatchQueue.main.async { //TODO: Don't assume main
+            if let error = error, (error as NSError).code == NSURLErrorCancelled, self.status == .paused {
                 //Download cancelled due to pausing so eat the error
                 return
             }
             
             guard let url = url else {
-                completionHandler?(self, .failure(NetworkingError.retrieval(underlayingError: error)))
+                self.completionHandler?(self, .failure(NetworkingError.retrieval(underlayingError: error)))
                 return
             }
 
             do {
                 let data = try Data(contentsOf: url)
 
-                completionHandler?(self, .success(data))
+                self.completionHandler?(self, .success(data))
             } catch let error {
-                completionHandler?(self, .failure(NetworkingError.invalidData(underlayingError: error)))
+                self.completionHandler?(self, .failure(NetworkingError.invalidData(underlayingError: error)))
             }
         }
     }
     
     func pause() {
-        status = .suspended
+        status = .paused
         immediateDownload = false
 
         downloadTask?.cancel(byProducingResumeData: { [weak self] (data) in
