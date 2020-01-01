@@ -48,6 +48,7 @@ protocol AssetDownloadItemType: class, CustomStringConvertible {
 
 class AssetDownloadItem: AssetDownloadItemType {
 
+    private let callbackQueue: OperationQueue
     private let session: URLSessionType
     
     private var resumeData: Data?
@@ -66,7 +67,8 @@ class AssetDownloadItem: AssetDownloadItemType {
     
     // MARK: - Init
     
-    init(session: URLSessionType, url: URL, immediateDownload: Bool) {
+    init(callbackQueue: OperationQueue? = OperationQueue.current, session: URLSessionType, url: URL, immediateDownload: Bool) {
+        self.callbackQueue = callbackQueue ?? OperationQueue.main
         self.session = session
         self.url = url
         self.immediateDownload = immediateDownload
@@ -100,26 +102,31 @@ class AssetDownloadItem: AssetDownloadItemType {
     }
     
     private func downloadTaskCompletionHandler(url: URL?, response: URLResponse?, error: Error?) {
-        DispatchQueue.main.async { //TODO: Don't assume main
-            if let error = error, (error as NSError).code == NSURLErrorCancelled, self.status == .paused {
-                //Download cancelled due to pausing so eat the error
-                return
-            }
-            
-            guard let url = url else {
+        if let error = error, (error as NSError).code == NSURLErrorCancelled, self.status == .paused {
+            //Download cancelled due to pausing so eat the error
+            return
+        }
+        
+        guard let url = url else {
+            callbackQueue.addOperation {
                 self.completionHandler?(self, .failure(NetworkingError.retrieval(underlayingError: error)))
-                return
             }
+            return
+        }
 
-            do {
-                let data = try Data(contentsOf: url)
-
+        do {
+            let data = try Data(contentsOf: url)
+            callbackQueue.addOperation {
                 self.completionHandler?(self, .success(data))
-            } catch let error {
+            }
+        } catch let error {
+            callbackQueue.addOperation {
                 self.completionHandler?(self, .failure(NetworkingError.invalidData(underlayingError: error)))
             }
+            
         }
     }
+    
     
     func pause() {
         status = .paused
