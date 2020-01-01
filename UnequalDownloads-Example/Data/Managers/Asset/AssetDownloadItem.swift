@@ -12,6 +12,7 @@ import os
 typealias AssetDownloadItemCompletionHandler = ((_ assetDownloadItem: AssetDownloadItemType, _ result: Result<Data, Error>) -> ())
 
 enum Status: CustomStringConvertible {
+    case waiting
     case downloading
     case paused
     case cancelled
@@ -21,6 +22,8 @@ enum Status: CustomStringConvertible {
     
     var description: String {
         switch self {
+        case .waiting:
+            return "Waiting"
         case .downloading:
             return "Downloading"
         case .paused:
@@ -59,7 +62,7 @@ class AssetDownloadItem: AssetDownloadItemType {
     
     let url: URL
     var immediateDownload: Bool
-    private(set) var status: Status = .paused
+    private(set) var status: Status = .waiting
 
     var description: String {
         return url.absoluteString
@@ -81,8 +84,10 @@ class AssetDownloadItem: AssetDownloadItemType {
     // MARK: - Lifecycle
     
     func resume() {
-        downloadTask = nil
-        observation?.invalidate()
+        guard (status == .waiting || status == .paused) else {
+            assertionFailure("Asset can't be resumed")
+            return
+        }
 
         status = .downloading
         
@@ -101,13 +106,13 @@ class AssetDownloadItem: AssetDownloadItemType {
         downloadTask?.resume()
     }
     
-    private func downloadTaskCompletionHandler(url: URL?, response: URLResponse?, error: Error?) {
+    private func downloadTaskCompletionHandler(fileLocationURL: URL?, response: URLResponse?, error: Error?) {
         if let error = error, (error as NSError).code == NSURLErrorCancelled, self.status == .paused {
             //Download cancelled due to pausing so eat the error
             return
         }
         
-        guard let url = url else {
+        guard let fileLocationURL = fileLocationURL else {
             callbackQueue.addOperation {
                 self.completionHandler?(self, .failure(NetworkingError.retrieval(underlayingError: error)))
             }
@@ -115,7 +120,7 @@ class AssetDownloadItem: AssetDownloadItemType {
         }
 
         do {
-            let data = try Data(contentsOf: url)
+            let data = try Data(contentsOf: fileLocationURL)
             callbackQueue.addOperation {
                 self.completionHandler?(self, .success(data))
             }
@@ -130,18 +135,26 @@ class AssetDownloadItem: AssetDownloadItemType {
     
     func pause() {
         status = .paused
-        immediateDownload = false
 
         downloadTask?.cancel(byProducingResumeData: { [weak self] (data) in
             self?.resumeData = data
         })
+        
+        cleanup()
     }
     
     func cancel() {
         status = .cancelled
-        immediateDownload = false
         
         downloadTask?.cancel()
+        
+        cleanup()
+    }
+    
+    private func cleanup() {
+        immediateDownload = false
+        observation?.invalidate()
+        downloadTask = nil
     }
     
     func done() {
