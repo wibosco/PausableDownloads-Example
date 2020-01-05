@@ -50,7 +50,7 @@ class URLSessionFactory: URLSessionFactoryType {
     func defaultSession(delegate: URLSessionDelegate? = nil, delegateQueue queue: OperationQueue? = nil) -> URLSessionType {
         let configuration = URLSessionConfiguration.default
         
-        //For demostration purposes disable caching
+        //For demonstration purposes disable caching
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.urlCache = nil
         

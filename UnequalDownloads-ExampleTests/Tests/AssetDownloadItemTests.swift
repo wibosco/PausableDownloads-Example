@@ -28,7 +28,7 @@ class AssetDownloadItemTests: XCTestCase {
         session = MockURLSession()
         session.downloadTask = downloadTask
         
-        sut = AssetDownloadItem(session: session, url: url, immediateDownload: false)
+        sut = AssetDownloadItem(session: session, url: url)
     }
 
     override func tearDown() {
@@ -97,21 +97,7 @@ class AssetDownloadItemTests: XCTestCase {
     func test_resume_state() {
         sut.resume()
 
-        XCTAssertEqual(sut.status, Status.downloading)
-    }
-
-    func test_resume_immediateDownloadStaysTrue() {
-        sut.immediateDownload = true
-        sut.resume()
-
-        XCTAssertTrue(sut.immediateDownload)
-    }
-
-    func test_resume_immediateDownloadStaysFalse() {
-        sut.immediateDownload = false
-        sut.resume()
-
-        XCTAssertFalse(sut.immediateDownload)
+        XCTAssertEqual(sut.state, State.downloading)
     }
     
     func test_resume_downloadCompletes_success_triggerCompletion() {
@@ -130,7 +116,7 @@ class AssetDownloadItemTests: XCTestCase {
         waitForExpectations(timeout: 3, handler: nil)
 
         let completionHandlerExpectation = expectation(description: "completionHandlerExpectation")
-        sut.completionHandler = { _, result in
+        sut.downloadCompletionHandler = { result in
             guard case let .success(data) = result else {
                XCTFail("Expecting success case")
                return
@@ -164,7 +150,7 @@ class AssetDownloadItemTests: XCTestCase {
         waitForExpectations(timeout: 3, handler: nil)
         
         let completionHandlerExpectation = expectation(description: "completionHandlerExpectation")
-        sut.completionHandler = { _, result in
+        sut.downloadCompletionHandler = { result in
             guard case let .failure(error) = result else {
                 XCTFail("Expecting failure case")
                 return
@@ -204,7 +190,7 @@ class AssetDownloadItemTests: XCTestCase {
         
         let completionHandlerExpectation = expectation(description: "completionHandlerExpectation")
         completionHandlerExpectation.isInverted = true
-        sut.completionHandler = { _, result in
+        sut.downloadCompletionHandler = { result in
             completionHandlerExpectation.fulfill()
         }
 
@@ -233,14 +219,7 @@ class AssetDownloadItemTests: XCTestCase {
     func test_pause_state() {
         sut.pause()
 
-        XCTAssertEqual(sut.status, Status.paused)
-    }
-
-    func test_pause_immediateDownloadSetToFalse() {
-        sut.immediateDownload = true
-        sut.pause()
-
-        XCTAssertFalse(sut.immediateDownload)
+        XCTAssertEqual(sut.state, State.paused)
     }
 
     // MARK: Cancel
@@ -260,14 +239,7 @@ class AssetDownloadItemTests: XCTestCase {
     func test_cancel_state() {
         sut.cancel()
 
-        XCTAssertEqual(sut.status, Status.cancelled)
-    }
-
-    func test_cancel_immediateDownloadSetToFalse() {
-        sut.immediateDownload = true
-        sut.cancel()
-
-        XCTAssertFalse(sut.immediateDownload)
+        XCTAssertEqual(sut.state, State.cancelled)
     }
     
     // MARK: Done
@@ -275,7 +247,7 @@ class AssetDownloadItemTests: XCTestCase {
     func test_done_state() {
         sut.done()
 
-        XCTAssertEqual(sut.status, Status.done)
+        XCTAssertEqual(sut.state, State.done)
     }
 
     // MARK: Coalesce
@@ -283,10 +255,10 @@ class AssetDownloadItemTests: XCTestCase {
     func test_coalesce_mutlipleSuccessCallbacksTriggered() {
         let expectedData = "this is a test".data(using: .utf8)!
 
-        let itemA = AssetDownloadItem(session: session, url: url, immediateDownload: false)
+        let itemA = AssetDownloadItem(session: session, url: url)
 
         let expectationA = expectation(description: "Closure called")
-        itemA.completionHandler = { _, result in
+        itemA.downloadCompletionHandler = { result in
             guard case let .success(data) = result else {
                 XCTFail("Expecting success case")
                 return
@@ -296,10 +268,8 @@ class AssetDownloadItemTests: XCTestCase {
             expectationA.fulfill()
         }
 
-        let itemB = AssetDownloadItem(session: session, url: url, immediateDownload: false)
-
         let expectationB = expectation(description: "Closure called")
-        itemB.completionHandler = { _, result in
+        let downloadCompletionHandlerB: AssetDownloadItemType.DownloadCompletionHandler = { result in
             guard case let .success(data) = result else {
                 XCTFail("Expecting success case")
                 return
@@ -310,19 +280,19 @@ class AssetDownloadItemTests: XCTestCase {
             expectationB.fulfill()
         }
 
-        itemA.coalesce(itemB)
+        itemA.coalesceDownloadCompletionHandler(downloadCompletionHandlerB)
         
         let result = Result<Data, Error>.success(expectedData)
-        itemA.completionHandler?(itemA, result)
+        itemA.downloadCompletionHandler?(result)
 
         waitForExpectations(timeout: 3, handler: nil)
     }
 
     func test_coalesce_mutlipleFailureCallbacksTriggered() {
-        let itemA = AssetDownloadItem(session: session, url: url, immediateDownload: false)
+        let itemA = AssetDownloadItem(session: session, url: url)
 
         let expectationA = expectation(description: "Closure called")
-        itemA.completionHandler = { _, result in
+        itemA.downloadCompletionHandler = { result in
             guard case .failure(_) = result else {
                 XCTFail("Expecting failure case")
                 return
@@ -330,10 +300,8 @@ class AssetDownloadItemTests: XCTestCase {
             expectationA.fulfill()
         }
 
-        let itemB = AssetDownloadItem(session: session, url: url, immediateDownload: false)
-
         let expectationB = expectation(description: "Closure called")
-        itemB.completionHandler = { _, result in
+        let downloadCompletionHandlerB: AssetDownloadItemType.DownloadCompletionHandler = { result in
             guard case .failure(_) = result else {
                 XCTFail("Expecting failure case")
                 return
@@ -341,10 +309,10 @@ class AssetDownloadItemTests: XCTestCase {
             expectationB.fulfill()
         }
 
-        itemA.coalesce(itemB)
+        itemA.coalesceDownloadCompletionHandler(downloadCompletionHandlerB)
 
         let result = Result<Data, Error>.failure(NetworkingError.unknown)
-        itemA.completionHandler?(itemA, result)
+        itemA.downloadCompletionHandler?(result)
 
         waitForExpectations(timeout: 3, handler: nil)
     }
@@ -352,12 +320,10 @@ class AssetDownloadItemTests: XCTestCase {
     func test_coalesce_additionalCallbackTriggeredWhenNoInitialOneExists() {
         let expectedData = "this is a test".data(using: .utf8)!
 
-        let itemA = AssetDownloadItem(session: session, url: url, immediateDownload: false)
-
-        let itemB = AssetDownloadItem(session: session, url: url, immediateDownload: false)
+        let itemA = AssetDownloadItem(session: session, url: url)
 
         let callbackExpectation = expectation(description: "Closure called")
-        itemB.completionHandler = { _, result in
+        let downloadCompletionHandler: AssetDownloadItemType.DownloadCompletionHandler = { result in
             guard case let .success(data) = result else {
                 XCTFail("Expecting success case")
                 return
@@ -368,10 +334,10 @@ class AssetDownloadItemTests: XCTestCase {
             callbackExpectation.fulfill()
         }
 
-        itemA.coalesce(itemB)
+        itemA.coalesceDownloadCompletionHandler(downloadCompletionHandler)
 
         let result = Result<Data, Error>.success(expectedData)
-        itemA.completionHandler?(itemA, result)
+        itemA.downloadCompletionHandler?(result)
 
         waitForExpectations(timeout: 3, handler: nil)
     }

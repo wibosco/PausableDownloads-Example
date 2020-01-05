@@ -68,9 +68,8 @@ class AssetDownloadsSessionTests: XCTestCase {
     
     func test_scheduleDownload_nonImmediate_startsDownload() {
         let assetDownloadItemExpectaion = expectation(description: "assetDownloadItemExpectation")
-        assetDownloadItemFactory.assetDownloadItemClosure = { (url, _, immediateDownload, _) in
+        assetDownloadItemFactory.assetDownloadItemClosure = { (url, _, _, _) in
             XCTAssertEqual(url, self.url)
-            XCTAssertFalse(immediateDownload)
             
             assetDownloadItemExpectaion.fulfill()
         }
@@ -151,6 +150,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         immediateAssetDownloadItem.url = immediateURL
         let immediateResumeExpectation = expectation(description: "immediateResumeExpectation")
         immediateAssetDownloadItem.resumeClosure = {
+            immediateAssetDownloadItem.isResumable = false
             immediateResumeExpectation.fulfill()
         }
         
@@ -204,9 +204,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let secondAssetDownloadItem = MockAssetDownloadItem()
         
         let firstAssetDownloadItemCoalesceExpectation = expectation(description: "firstAssetDownloadItemCoalesceExpectation")
-        firstAssetDownloadItem.coalesceClosure = { assetDownloadItem in
-            XCTAssertTrue(assetDownloadItem === secondAssetDownloadItem)
-            
+        firstAssetDownloadItem.coalesceDownloadCompletionHandlerClosure = { _ in
             firstAssetDownloadItemCoalesceExpectation.fulfill()
         }
         
@@ -232,7 +230,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let secondAssetDownloadItem = MockAssetDownloadItem()
         
         let firstAssetDownloadItemCoalesceExpectation = expectation(description: "firstAssetDownloadItemCoalesceExpectation")
-        firstAssetDownloadItem.coalesceClosure = { assetDownloadItem in
+        firstAssetDownloadItem.coalesceDownloadCompletionHandlerClosure = { _ in
             firstAssetDownloadItemCoalesceExpectation.fulfill()
         }
         
@@ -268,9 +266,9 @@ class AssetDownloadsSessionTests: XCTestCase {
         let secondAssetDownloadItem = MockAssetDownloadItem()
         secondAssetDownloadItem.url = url
         
-        let firstAssetDownloadItemPauseExpectation = expectation(description: "firstAssetDownloadItemPauseExpectation")
-        firstAssetDownloadItem.pauseClosure = {
-            firstAssetDownloadItemPauseExpectation.fulfill()
+        let assetDownloadItemHibernateExpectation = expectation(description: "assetDownloadItemHibernateExpectation")
+        firstAssetDownloadItem.hibernateClosure = {
+            assetDownloadItemHibernateExpectation.fulfill()
         }
         
         assetDownloadItemFactory.assetDownloadItem = firstAssetDownloadItem
@@ -279,11 +277,11 @@ class AssetDownloadsSessionTests: XCTestCase {
         
         sut.cancelDownload(url: url)
         
-        wait(for: [firstAssetDownloadItemPauseExpectation], timeout: 3)
+        wait(for: [assetDownloadItemHibernateExpectation], timeout: 3)
         
         let firstAssetDownloadItemCoalesceExpectation = expectation(description: "firstAssetDownloadItemCoalesceExpectation")
         firstAssetDownloadItemCoalesceExpectation.isInverted = true
-        firstAssetDownloadItem.coalesceClosure = { assetDownloadItem in
+        firstAssetDownloadItem.coalesceDownloadCompletionHandlerClosure = { _ in
             firstAssetDownloadItemCoalesceExpectation.fulfill()
         }
         
@@ -314,7 +312,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         
         assetDownloadItemFactory.assetDownloadItem = assetDownloadItem
         let assetDownloadItemExpectation = expectation(description: "assetDownloadItemExpectation")
-        var assetDownloadItemCompletionClosure: AssetDownloadItemCompletionHandler?
+        var assetDownloadItemCompletionClosure: AssetDownloadItemType.DownloadCompletionHandler?
         assetDownloadItemFactory.assetDownloadItemClosure = { (url, session, immediateDownload, completionHandler) in
             assetDownloadItemCompletionClosure = completionHandler
 
@@ -327,7 +325,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         
         let data = "success data".data(using: .utf8)!
         let result = Result<Data, Error>.success(data)
-        assetDownloadItemCompletionClosure?(assetDownloadItem, result)
+        assetDownloadItemCompletionClosure?(result)
 
         wait(for: [doneExpectation], timeout: 3)
     }
@@ -337,7 +335,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         
         assetDownloadItemFactory.assetDownloadItem = assetDownloadItem
         let assetDownloadItemExpectation = expectation(description: "assetDownloadItemExpectation")
-        var assetDownloadItemCompletionClosure: AssetDownloadItemCompletionHandler?
+        var assetDownloadItemCompletionClosure: AssetDownloadItemType.DownloadCompletionHandler?
         assetDownloadItemFactory.assetDownloadItemClosure = { (url, session, immediateDownload, completionHandler) in
             assetDownloadItemCompletionClosure = completionHandler
             
@@ -361,7 +359,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         wait(for: [assetDownloadItemExpectation], timeout: 3)
         
         let result = Result<Data, Error>.success(data)
-        assetDownloadItemCompletionClosure?(assetDownloadItem, result)
+        assetDownloadItemCompletionClosure?(result)
     
         wait(for: [completionExpectation], timeout: 3)
     }
@@ -371,7 +369,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         
         assetDownloadItemFactory.assetDownloadItem = assetDownloadItem
         var assetDownloadItemExpectation: XCTestExpectation? = expectation(description: "assetDownloadItemExpectation")
-        var assetDownloadItemCompletionClosure: AssetDownloadItemCompletionHandler?
+        var assetDownloadItemCompletionClosure: AssetDownloadItemType.DownloadCompletionHandler?
         assetDownloadItemFactory.assetDownloadItemClosure = { (url, session, immediateDownload, completionHandler) in
             assetDownloadItemCompletionClosure = completionHandler
             
@@ -390,11 +388,11 @@ class AssetDownloadsSessionTests: XCTestCase {
         }
         
         let result = Result<Data, Error>.success("success data".data(using: .utf8)!)
-        assetDownloadItemCompletionClosure?(assetDownloadItem, result)
+        assetDownloadItemCompletionClosure?(result)
         
         let coalesceExpectation = expectation(description: "coalesceExpectation")
         coalesceExpectation.isInverted = true
-        assetDownloadItem.coalesceClosure = { _ in
+        assetDownloadItem.coalesceDownloadCompletionHandlerClosure = { _ in
             coalesceExpectation.fulfill()
         }
         
@@ -409,9 +407,9 @@ class AssetDownloadsSessionTests: XCTestCase {
         let assetDownloadItem = MockAssetDownloadItem()
         assetDownloadItem.url = url
         
-        let assetDownloadItemPauseExpectation = expectation(description: "assetDownloadItemPauseExpectation")
-        assetDownloadItem.pauseClosure = {
-            assetDownloadItemPauseExpectation.fulfill()
+        let assetDownloadItemHibernateExpectation = expectation(description: "assetDownloadItemHibernateExpectation")
+        assetDownloadItem.hibernateClosure = {
+            assetDownloadItemHibernateExpectation.fulfill()
         }
         
         assetDownloadItemFactory.assetDownloadItem = assetDownloadItem
@@ -437,6 +435,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         immediateAssetDownloadItem.url = immediateURL
         let immediateResumeExpectation = expectation(description: "immediateResumeExpectation")
         immediateAssetDownloadItem.resumeClosure = {
+            immediateAssetDownloadItem.isResumable = false
             immediateResumeExpectation.fulfill()
         }
         
@@ -446,9 +445,9 @@ class AssetDownloadsSessionTests: XCTestCase {
         
         waitForExpectations(timeout: 3, handler: nil)
         
-        let assetDownloadItemPauseExpectation = expectation(description: "assetDownloadItemPauseExpectation")
-        assetDownloadItem.pauseClosure = {
-          assetDownloadItemPauseExpectation.fulfill()
+        let assetDownloadItemHibernateExpectation = expectation(description: "assetDownloadItemHibernateExpectation")
+        assetDownloadItem.hibernateClosure = {
+          assetDownloadItemHibernateExpectation.fulfill()
         }
         
         sut.cancelDownload(url: url)

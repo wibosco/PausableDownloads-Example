@@ -12,15 +12,14 @@ import Foundation
 
 class MockAssetDownloadItemFactory: AssetDownloadItemFactoryType {
     
-    var assetDownloadItemClosure: ((_ url: URL, _ session: URLSessionType, _ immediateDownload: Bool, _ completionHandler: @escaping AssetDownloadItemCompletionHandler) -> ())?
+    var assetDownloadItemClosure: ((_ url: URL, _ session: URLSessionType, _ delegate: AssetDownloadItemDelegate, _ downloadCompletionHandler: @escaping AssetDownloadItemType.DownloadCompletionHandler) -> ())?
     var assetDownloadItem = MockAssetDownloadItem()
     
-    func assetDownloadItem(forURL url: URL, session: URLSessionType, immediateDownload: Bool, completionHandler: @escaping AssetDownloadItemCompletionHandler) -> AssetDownloadItemType {
-        assetDownloadItemClosure?(url, session, immediateDownload, completionHandler)
+    func assetDownloadItem(forURL url: URL, session: URLSessionType, delegate: AssetDownloadItemDelegate, downloadCompletionHandler: @escaping AssetDownloadItemType.DownloadCompletionHandler) -> AssetDownloadItemType {
+        assetDownloadItemClosure?(url, session, delegate, downloadCompletionHandler)
         
         assetDownloadItem.url = url
-        assetDownloadItem.immediateDownload = immediateDownload
-        assetDownloadItem.completionHandler = completionHandler
+        assetDownloadItem.downloadCompletionHandler = downloadCompletionHandler
         
         return assetDownloadItem
     }

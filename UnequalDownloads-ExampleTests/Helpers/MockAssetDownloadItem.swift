@@ -11,9 +11,14 @@ import Foundation
 @testable import UnequalDownloads_Example
 
 class MockAssetDownloadItem: AssetDownloadItemType {
-    var completionHandler: AssetDownloadItemCompletionHandler?
+    var delegate: AssetDownloadItemDelegate?
+    
+    var isCoalescable: Bool = true
+    var isResumable: Bool = true
+    
+    var downloadCompletionHandler: AssetDownloadItemType.DownloadCompletionHandler?
     var immediateDownload: Bool = false
-    var status: Status = .paused
+    var state: State = .paused
     var url: URL = URL(string: "http://www.test.com/example")!
     var description: String = "description"
     
@@ -21,25 +26,41 @@ class MockAssetDownloadItem: AssetDownloadItemType {
     var pauseClosure: (() -> ())?
     var cancelClosure: (() -> ())?
     var doneClosure: (() -> ())?
-    var coalesceClosure: ((_ otherAssetDownloadItem: AssetDownloadItemType) -> ())?
+    var hibernateClosure: (() -> ())?
+    var awakenClosure: (() -> ())?
+    var coalesceDownloadCompletionHandlerClosure: ((_ otherDownloadCompletionHandler: AssetDownloadItemType.DownloadCompletionHandler) -> ())?
     
     func resume() {
+        state = .downloading
         resumeClosure?()
     }
     
     func pause() {
+        state = .paused
         pauseClosure?()
     }
     
+    func hibernate() {
+        state = .hibernating
+        hibernateClosure?()
+    }
+    
+    func awaken() {
+        state = .paused
+        awakenClosure?()
+    }
+    
     func cancel() {
+        state = .cancelled
         cancelClosure?()
     }
     
     func done() {
+        state = .done
         doneClosure?()
     }
     
-    func coalesce(_ otherAssetDownloadItem: AssetDownloadItemType) {
-        coalesceClosure?(otherAssetDownloadItem)
+    func coalesceDownloadCompletionHandler(_ otherDownloadCompletionHandler: @escaping AssetDownloadItemType.DownloadCompletionHandler) {
+        coalesceDownloadCompletionHandlerClosure?(otherDownloadCompletionHandler)
     }
 }
