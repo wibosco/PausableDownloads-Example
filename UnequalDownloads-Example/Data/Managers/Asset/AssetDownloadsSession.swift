@@ -16,8 +16,8 @@ protocol NotificationCenterType {
 
 extension NotificationCenter: NotificationCenterType { }
 
-class AssetDownloadsSession: AssetDownloadItemDelegate {
-
+class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDownloadDelegate {
+    
     private var immediateAssetDownloadItem: AssetDownloadItemType?
     private var assetDownloadItems = [AssetDownloadItemType]()
     
@@ -25,7 +25,9 @@ class AssetDownloadsSession: AssetDownloadItemDelegate {
     
     private let notificationCenter: NotificationCenterType
     private let assetDownloadItemFactory: AssetDownloadItemFactoryType
-    private let session: URLSessionType
+    private var session: URLSessionType!
+    
+    private var tasks = [URLSessionDownloadTask]()
     
     // MARK: - Singleton
     
@@ -36,8 +38,10 @@ class AssetDownloadsSession: AssetDownloadItemDelegate {
     init(urlSessionFactory: URLSessionFactoryType = URLSessionFactory(), assetDownloadItemFactory: AssetDownloadItemFactoryType = AssetDownloadItemFactory(), notificationCenter: NotificationCenterType = NotificationCenter.default) {
         self.assetDownloadItemFactory = assetDownloadItemFactory
         self.notificationCenter = notificationCenter
-        self.session = urlSessionFactory.defaultSession()
-            
+        
+        super.init()
+        
+        self.session = urlSessionFactory.defaultSession(delegate: self)
         registerForNotifications()
     }
     
@@ -65,12 +69,12 @@ class AssetDownloadsSession: AssetDownloadItemDelegate {
     func scheduleDownload(url: URL, immediateDownload: Bool, completionHandler: @escaping ((_ result: Result<Data, Error>) -> ())) {
         accessQueue.sync {
             let potentialImmediateAssetDownloadItem: AssetDownloadItemType
-            
+
             if var existingAssetDownloadItem = coalescableAssetDownloadItem(withURL: url) {
                 switch existingAssetDownloadItem.state {
                 case .downloading, .paused:
                     os_log(.info, "Found existing %{public}@ download so coalescing them for: %{public}@", existingAssetDownloadItem.state.rawValue, existingAssetDownloadItem.description)
-                   existingAssetDownloadItem.coalesceDownloadCompletionHandler(completionHandler)
+                    existingAssetDownloadItem.coalesceDownloadCompletionHandler(completionHandler)
                 case .hibernating:
                    os_log(.info, "Found existing hibernating download so reviving download for: %{public}@", existingAssetDownloadItem.description)
                    //as the download is in hibernation no need to coalesce - just override
@@ -79,23 +83,29 @@ class AssetDownloadsSession: AssetDownloadItemDelegate {
                 default:
                     assertionFailure("Unexpected state for an existing download")
                 }
-                
+
                 potentialImmediateAssetDownloadItem = existingAssetDownloadItem
             } else {
                 let assetDownloadItem = assetDownloadItemFactory.assetDownloadItem(forURL: url, session: session, delegate: self, downloadCompletionHandler: completionHandler)
                 assetDownloadItems.append(assetDownloadItem)
                 os_log(.info, "Adding new download: %{public}@", assetDownloadItem.description)
-                
+
                 potentialImmediateAssetDownloadItem = assetDownloadItem
             }
-            
+
             if immediateDownload {
                 pauseAllDownloads()
                 immediateAssetDownloadItem = potentialImmediateAssetDownloadItem
             }
-            
+
             startDownloads()
         }
+        
+//        os_log(.info, "Downloading: %{public}@", url.absoluteString)
+//        let task = session.downloadTask(with: url)
+//        task.resume()
+//
+//        tasks.append(task)
     }
     
     // MARK: - Download
@@ -196,5 +206,17 @@ class AssetDownloadsSession: AssetDownloadItemDelegate {
            self.finishedDownload(ofAssetDownloadItem: assetDownloadItem)
            self.startDownloads()
         }
+    }
+    
+    // MARK: - URLSessionDownloadDelegate
+    
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) { /*no-op*/ }
+    
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didResumeAtOffset fileOffset: Int64, expectedTotalBytes: Int64) {
+        guard let url = downloadTask.currentRequest?.url else {
+            return
+        }
+        let resumptionPercentage = (Double(fileOffset)/Double(expectedTotalBytes)) * 100
+        os_log(.info, "Resuming download: %{public}@ from: %{public}.02f%%", url.absoluteString, resumptionPercentage)
     }
 }

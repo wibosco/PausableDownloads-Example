@@ -11,7 +11,6 @@ import Foundation
 @testable import UnequalDownloads_Example
 
 class MockAssetDownloadItemFactory: AssetDownloadItemFactoryType {
-    
     var assetDownloadItemClosure: ((_ url: URL, _ session: URLSessionType, _ delegate: AssetDownloadItemDelegate, _ downloadCompletionHandler: @escaping AssetDownloadItemType.DownloadCompletionHandler) -> ())?
     var assetDownloadItem = MockAssetDownloadItem()
     

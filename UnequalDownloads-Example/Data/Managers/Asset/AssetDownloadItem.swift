@@ -100,7 +100,7 @@ final class AssetDownloadItem: AssetDownloadItemType {
                 //Download cancelled due to being paused so lets eat this error
                 return
             }
-            
+
             guard let fileLocationURL = fileLocationURL else {
                 self.callbackQueue.addOperation {
                     self.downloadCompletionHandler?(.failure(NetworkingError.retrieval(underlayingError: error)))
@@ -119,7 +119,7 @@ final class AssetDownloadItem: AssetDownloadItemType {
                     self.downloadCompletionHandler?(.failure(NetworkingError.invalidData(underlayingError: error)))
                 }
             }
-            
+
             self.done()
         }
         
