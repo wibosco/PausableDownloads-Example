@@ -17,7 +17,7 @@ class AssetDownloadsSessionTests: XCTestCase {
     var sessionFactory: MockURLSessionFactory!
     var session: MockURLSession!
     var notificationCenter: MockNotificationCenter!
-    var assetDownloadItemFactory: MockAssetDownloadItemFactory!
+//    var assetDownloadItemFactory: MockAssetDownloadItemFactory!
     
     let url = URL(string: "http://test.com/example")!
     
@@ -30,16 +30,16 @@ class AssetDownloadsSessionTests: XCTestCase {
         session = MockURLSession()
         sessionFactory.defaultSession = session
         notificationCenter = MockNotificationCenter()
-        assetDownloadItemFactory = MockAssetDownloadItemFactory()
+//        assetDownloadItemFactory = MockAssetDownloadItemFactory()
         
-        sut = AssetDownloadsSession(urlSessionFactory: sessionFactory, assetDownloadItemFactory: assetDownloadItemFactory, notificationCenter: notificationCenter)
+        sut = AssetDownloadsSession(urlSessionFactory: sessionFactory, notificationCenter: notificationCenter)
     }
 
     override func tearDown() {
         notificationCenter = nil
         sessionFactory = nil
         session = nil
-        assetDownloadItemFactory = nil
+//        assetDownloadItemFactory = nil
         
         sut = nil
         
@@ -64,23 +64,74 @@ class AssetDownloadsSessionTests: XCTestCase {
         waitForExpectations(timeout: 3, handler: nil)
     }
     
+    func test_init_sendNotification_cancelHibernatingDownloads() {
+        let notificationCenter = MockNotificationCenter()
+        
+        var notificationBlock: ((Notification) -> Void)?
+        let addObserverExpectation = expectation(description: "addObserverExpectation")
+        notificationCenter.addObserverClosure = { (name, object, queue, block) in
+            notificationBlock = block
+            
+            addObserverExpectation.fulfill()
+        }
+        
+        let sessionFactory = MockURLSessionFactory()
+        let session = MockURLSession()
+        sessionFactory.defaultSession = session
+        
+        let sut = AssetDownloadsSession(urlSessionFactory: sessionFactory, notificationCenter: notificationCenter)
+        
+        waitForExpectations(timeout: 3, handler: nil)
+        
+        let downloadTask = MockURLSessionDownloadTask()
+        session.downloadTask = downloadTask
+        
+        let downloadTaskExpectation = expectation(description: "downloadTaskExpectation")
+        session.downloadTaskClosure = { (url, completion) in
+            downloadTaskExpectation.fulfill()
+        }
+        
+        sut.scheduleDownload(url: url, immediateDownload: false) { _ in }
+        
+        waitForExpectations(timeout: 3, handler: nil)
+        
+        let cancelByProducingResumeDataExpectation = expectation(description: "cancelByProducingResumeDataExpectation")
+        downloadTask.cancelByProducingResumeDataClosure = { (completion) in
+            cancelByProducingResumeDataExpectation.fulfill()
+        }
+        
+        sut.cancelDownload(url: url)
+        
+        waitForExpectations(timeout: 3, handler: nil)
+        
+        let cancelExpectation = expectation(description: "cancelExpectation")
+        downloadTask.cancelClosure = {
+            cancelExpectation.fulfill()
+        }
+        
+        let notification = Notification(name: UIApplication.didReceiveMemoryWarningNotification)
+        notificationBlock?(notification)
+        
+        waitForExpectations(timeout: 3, handler: nil)
+    }
+    
     // MARK: Schedule
     
     func test_scheduleDownload_nonImmediate_startsDownload() {
-        let assetDownloadItemExpectaion = expectation(description: "assetDownloadItemExpectation")
-        assetDownloadItemFactory.assetDownloadItemClosure = { (url, _, _, _) in
-            XCTAssertEqual(url, self.url)
-            
-            assetDownloadItemExpectaion.fulfill()
-        }
-        
-        let assetDownloadItem = MockAssetDownloadItem()
+        let downloadTask = MockURLSessionDownloadTask()
         let resumeExpectation = expectation(description: "resumeExpectation")
-        assetDownloadItem.resumeClosure = {
+        downloadTask.resumeClosure = {
             resumeExpectation.fulfill()
         }
         
-        assetDownloadItemFactory.assetDownloadItem = assetDownloadItem
+        session.downloadTask = downloadTask
+        
+        let downloadTaskExpectation = expectation(description: "downloadTaskExpectation")
+        session.downloadTaskClosure = { (url, completion) in
+            XCTAssertEqual(url, self.url)
+            
+            downloadTaskExpectation.fulfill()
+        }
         
         sut.scheduleDownload(url: url, immediateDownload: false) { _ in }
         
@@ -88,370 +139,212 @@ class AssetDownloadsSessionTests: XCTestCase {
     }
     
     func test_scheduleDownload_mulitple_nonImmediate_startsAllDownloads() {
-        let assetDownloadItemA = MockAssetDownloadItem()
-        let resumeExpectationA = expectation(description: "resumeAExpectation")
-        assetDownloadItemA.resumeClosure = {
-            resumeExpectationA.fulfill()
+        let downloadTask = MockURLSessionDownloadTask()
+        let resumeExpectation = expectation(description: "resumeExpectation")
+        resumeExpectation.expectedFulfillmentCount = 2
+        downloadTask.resumeClosure = {
+            resumeExpectation.fulfill()
         }
         
-        assetDownloadItemFactory.assetDownloadItem = assetDownloadItemA
+        session.downloadTask = downloadTask
         
-        sut.scheduleDownload(url: url, immediateDownload: false) { _ in }
+        let urlA = URL(string: "http://example.com/resourceA")!
+        let urlB = URL(string: "http://example.com/resourceB")!
         
-        wait(for: [resumeExpectationA], timeout: 3)
-        
-        let urlB = URL(string: "http://differenturl.com/example")!
-        
-        let assetDownloadItemB = MockAssetDownloadItem()
-        assetDownloadItemB.url = urlB
-        let resumeExpectationB = expectation(description: "resumeBExpectation")
-        assetDownloadItemB.resumeClosure = {
-            resumeExpectationB.fulfill()
-        }
-        
-        assetDownloadItemFactory.assetDownloadItem = assetDownloadItemB
-        
+        sut.scheduleDownload(url: urlA, immediateDownload: false) { _ in }
         sut.scheduleDownload(url: urlB, immediateDownload: false) { _ in }
-        
-        wait(for: [resumeExpectationB], timeout: 3)
-    }
-    
-    func test_scheduleDownload_whenImmediateDownloadIsScheduledPauseOtherDownloads_startImmediateDownloads() {
-        let nonImmediateAssetDownloadItem = MockAssetDownloadItem()
-        let nonImmediatePauseExpectation = expectation(description: "nonImmediatePauseExpectation")
-        nonImmediateAssetDownloadItem.pauseClosure = {
-            nonImmediatePauseExpectation.fulfill()
-        }
-        
-        assetDownloadItemFactory.assetDownloadItem = nonImmediateAssetDownloadItem
-        
-        sut.scheduleDownload(url: url, immediateDownload: false) { _ in }
-        
-        let immediateURL = URL(string: "http://differenturl.com/example")!
-        
-        let immediateAssetDownloadItem = MockAssetDownloadItem()
-        immediateAssetDownloadItem.url = immediateURL
-        let immediateResumeExpectation = expectation(description: "immediateResumeExpectation")
-        immediateAssetDownloadItem.resumeClosure = {
-            immediateResumeExpectation.fulfill()
-        }
-        
-        assetDownloadItemFactory.assetDownloadItem = immediateAssetDownloadItem
-        
-        sut.scheduleDownload(url: immediateURL, immediateDownload: true) { _ in }
-        
-        wait(for: [nonImmediatePauseExpectation, immediateResumeExpectation], timeout: 3, enforceOrder: true)
-    }
-    
-    func test_scheduleDownload_whenImmediateDownloadIsActiveSubsequentNonImmediateDownloadArePaused() {
-        let immediateURL = URL(string: "http://differenturl.com/example")!
-        
-        let immediateAssetDownloadItem = MockAssetDownloadItem()
-        immediateAssetDownloadItem.url = immediateURL
-        let immediateResumeExpectation = expectation(description: "immediateResumeExpectation")
-        immediateAssetDownloadItem.resumeClosure = {
-            immediateAssetDownloadItem.isResumable = false
-            immediateResumeExpectation.fulfill()
-        }
-        
-        assetDownloadItemFactory.assetDownloadItem = immediateAssetDownloadItem
-        
-        sut.scheduleDownload(url: immediateURL, immediateDownload: true) { _ in }
-        
-        let nonImmediateAssetDownloadItem = MockAssetDownloadItem()
-        let nonImmediateResumeExpectation = expectation(description: "nonImmediateResumeExpectation")
-        nonImmediateResumeExpectation.isInverted = true
-        nonImmediateAssetDownloadItem.resumeClosure = {
-            nonImmediateResumeExpectation.fulfill()
-        }
-        
-        assetDownloadItemFactory.assetDownloadItem = nonImmediateAssetDownloadItem
-        
-        sut.scheduleDownload(url: url, immediateDownload: false) { _ in }
-        
+
         waitForExpectations(timeout: 3, handler: nil)
     }
-    
+
+    func test_scheduleDownload_whenImmediateDownloadIsScheduledPauseOtherDownloads_startImmediateDownload() {
+        let nonImmediateDownloadTask = MockURLSessionDownloadTask()
+        let nonImmediateDownloadTaskCancelExpectation = expectation(description: "nonImmediateDownloadTaskCancelExpectation")
+        nonImmediateDownloadTask.cancelByProducingResumeDataClosure = { (completion) in
+            nonImmediateDownloadTaskCancelExpectation.fulfill()
+        }
+        
+        session.downloadTask = nonImmediateDownloadTask
+
+        let nonImmediateURL = URL(string: "http://example.com/resourceA")!
+        sut.scheduleDownload(url: nonImmediateURL, immediateDownload: false) { _ in }
+        
+        let immediateDownloadTask = MockURLSessionDownloadTask()
+        let immediateDownloadTaskResumeExpectation = expectation(description: "immediateDownloadTaskResumeExpectation")
+        immediateDownloadTask.resumeClosure = {
+            immediateDownloadTaskResumeExpectation.fulfill()
+        }
+        
+        session.downloadTask = immediateDownloadTask
+
+        let immediateURL = URL(string: "http://example.com/resourceB")!
+        sut.scheduleDownload(url: immediateURL, immediateDownload: true) { _ in }
+
+        wait(for: [nonImmediateDownloadTaskCancelExpectation, immediateDownloadTaskResumeExpectation], timeout: 3, enforceOrder: true)
+    }
+
+    func test_scheduleDownload_whenImmediateDownloadIsActiveSubsequentNonImmediateDownloadAreNotStarted() {
+        let immediateDownloadTask = MockURLSessionDownloadTask()
+        
+        session.downloadTask = immediateDownloadTask
+
+        let immediateURL = URL(string: "http://example.com/resourceB")!
+        sut.scheduleDownload(url: immediateURL, immediateDownload: true) { _ in }
+        
+        let nonImmediateDownloadTask = MockURLSessionDownloadTask()
+        let nonImmediateDownloadTaskResumeExpectation = expectation(description: "nonImmediateDownloadTaskResumeExpectation")
+        nonImmediateDownloadTaskResumeExpectation.isInverted = true
+        nonImmediateDownloadTask.resumeClosure = {
+            nonImmediateDownloadTaskResumeExpectation.fulfill()
+        }
+        
+        session.downloadTask = nonImmediateDownloadTask
+
+        let nonImmediateURL = URL(string: "http://example.com/resourceA")!
+        sut.scheduleDownload(url: nonImmediateURL, immediateDownload: false) { _ in }
+
+        waitForExpectations(timeout: 3, handler: nil)
+    }
+
     func test_scheduleDownload_immediateDownloadIsActive_scheduleAnotherImmediateDownload_pausesFirstDownload() {
-        let immediateURL = URL(string: "http://differenturl.com/example")!
-        
-        let firstImmediateAssetDownloadItem = MockAssetDownloadItem()
-        firstImmediateAssetDownloadItem.url = immediateURL
-        let firstImmediatePauseExpectation = expectation(description: "firstImmediatePauseExpectation")
-        firstImmediateAssetDownloadItem.pauseClosure = {
-            firstImmediatePauseExpectation.fulfill()
+        let immediateDownloadTaskA = MockURLSessionDownloadTask()
+        let immediateDownloadTaskPauseExpectation = expectation(description: "immediateDownloadTaskPauseExpectation")
+        immediateDownloadTaskA.cancelByProducingResumeDataClosure = { (completion) in
+           immediateDownloadTaskPauseExpectation.fulfill()
+        }
+
+        session.downloadTask = immediateDownloadTaskA
+
+        let immediateURLA = URL(string: "http://example.com/resourceA")!
+        sut.scheduleDownload(url: immediateURLA, immediateDownload: true) { _ in }
+
+        let immediateDownloadTaskB = MockURLSessionDownloadTask()
+        let immediateDownloadTaskResumeExpectation = expectation(description: "immediateDownloadTaskResumeExpectation")
+        immediateDownloadTaskB.resumeClosure = {
+           immediateDownloadTaskResumeExpectation.fulfill()
+        }
+
+        session.downloadTask = immediateDownloadTaskB
+
+        let immediateURLB = URL(string: "http://example.com/resourceB")!
+        sut.scheduleDownload(url: immediateURLB, immediateDownload: true) { _ in }
+
+        wait(for: [immediateDownloadTaskPauseExpectation, immediateDownloadTaskResumeExpectation], timeout: 3, enforceOrder: true)
+    }
+
+    func test_scheduleDownload_multiple_coalesceDownloads() {
+        let downloadTask = MockURLSessionDownloadTask()
+        let resumeExpectation = expectation(description: "resumeExpectation")
+        downloadTask.resumeClosure = {
+            resumeExpectation.fulfill()
         }
         
-        assetDownloadItemFactory.assetDownloadItem = firstImmediateAssetDownloadItem
+        session.downloadTask = downloadTask
         
-        sut.scheduleDownload(url: immediateURL, immediateDownload: true) { _ in }
-        
-        let secondImmediateAssetDownloadItem = MockAssetDownloadItem()
-        let secondImmediateResumeExpectation = expectation(description: "secondImmediateResumeExpectation")
-        secondImmediateAssetDownloadItem.resumeClosure = {
-            secondImmediateResumeExpectation.fulfill()
+        var downloadTaskCompletion: ((URL?, URLResponse?, Error?) -> Void)?
+        let downloadTaskExpectation = expectation(description: "downloadTaskExpectation")
+        session.downloadTaskClosure = { (url, completion) in
+            downloadTaskCompletion = completion
+            
+            downloadTaskExpectation.fulfill()
         }
         
-        assetDownloadItemFactory.assetDownloadItem = secondImmediateAssetDownloadItem
+        let firstCompletionExpectation = expectation(description: "firstCompletionExpectation")
+        sut.scheduleDownload(url: url, immediateDownload: false) { (_) in
+            firstCompletionExpectation.fulfill()
+        }
         
-        sut.scheduleDownload(url: url, immediateDownload: true) { _ in }
+        let secondCompletionExpectation = expectation(description: "secondCompletionExpectation")
+        sut.scheduleDownload(url: url, immediateDownload: false) { (_) in
+            secondCompletionExpectation.fulfill()
+        }
+        
+        downloadTaskCompletion?(nil, nil, nil)
         
         waitForExpectations(timeout: 3, handler: nil)
     }
-    
-    func test_scheduleDownload_multiple_coalesceActiveDownload() {
-        let firstAssetDownloadItem = MockAssetDownloadItem()
-        let secondAssetDownloadItem = MockAssetDownloadItem()
-        
-        let firstAssetDownloadItemCoalesceExpectation = expectation(description: "firstAssetDownloadItemCoalesceExpectation")
-        firstAssetDownloadItem.coalesceDownloadCompletionHandlerClosure = { _ in
-            firstAssetDownloadItemCoalesceExpectation.fulfill()
+    func test_scheduleDownload_cancelledDownload_reviveCancelledDownload() {
+        let downloadTask = MockURLSessionDownloadTask()
+        let downloadTaskPauseExpectation = expectation(description: "downloadTaskPauseExpectation")
+        downloadTask.cancelByProducingResumeDataClosure = { (completion) in
+            downloadTaskPauseExpectation.fulfill()
         }
         
-        assetDownloadItemFactory.assetDownloadItem = firstAssetDownloadItem
-        
+        session.downloadTask = downloadTask
+
         sut.scheduleDownload(url: url, immediateDownload: false) { _ in }
-        
-        let secondAssetDownloadItemResumeExpectation = expectation(description: "secondAssetDownloadItemResumeExpectation")
-        secondAssetDownloadItemResumeExpectation.isInverted = true
-        secondAssetDownloadItem.resumeClosure = {
-            secondAssetDownloadItemResumeExpectation.fulfill()
-        }
-        
-        assetDownloadItemFactory.assetDownloadItem = secondAssetDownloadItem
-        
-        sut.scheduleDownload(url: url, immediateDownload: false) { _ in }
-        
-        waitForExpectations(timeout: 3, handler: nil)
-    }
-    
-    func test_scheduleDownload_multiple_coalescePausedDownload() {
-        let firstAssetDownloadItem = MockAssetDownloadItem()
-        let secondAssetDownloadItem = MockAssetDownloadItem()
-        
-        let firstAssetDownloadItemCoalesceExpectation = expectation(description: "firstAssetDownloadItemCoalesceExpectation")
-        firstAssetDownloadItem.coalesceDownloadCompletionHandlerClosure = { _ in
-            firstAssetDownloadItemCoalesceExpectation.fulfill()
-        }
-        
-        assetDownloadItemFactory.assetDownloadItem = firstAssetDownloadItem
-        
-        sut.scheduleDownload(url: url, immediateDownload: false) { _ in }
-        
-        let immediateURL = URL(string: "http://differenturl.com/example")!
-        
-        let immediateAssetDownloadItem = MockAssetDownloadItem()
-        immediateAssetDownloadItem.url = immediateURL
-        
-        assetDownloadItemFactory.assetDownloadItem = immediateAssetDownloadItem
-        
-        sut.scheduleDownload(url: immediateURL, immediateDownload: true) { _ in }
-        
-        let secondAssetDownloadItemResumeExpectation = expectation(description: "secondAssetDownloadItemResumeExpectation")
-        secondAssetDownloadItemResumeExpectation.isInverted = true
-        secondAssetDownloadItem.resumeClosure = {
-            secondAssetDownloadItemResumeExpectation.fulfill()
-        }
-        
-        assetDownloadItemFactory.assetDownloadItem = secondAssetDownloadItem
-        
-        sut.scheduleDownload(url: url, immediateDownload: false) { _ in }
-        
-        waitForExpectations(timeout: 3, handler: nil)
-    }
-    
-    func test_scheduleDownload_cancelledDownload_reviveCancelledDownload_withCoalescing() {
-        let firstAssetDownloadItem = MockAssetDownloadItem()
-        firstAssetDownloadItem.url = url
-        let secondAssetDownloadItem = MockAssetDownloadItem()
-        secondAssetDownloadItem.url = url
-        
-        let assetDownloadItemHibernateExpectation = expectation(description: "assetDownloadItemHibernateExpectation")
-        firstAssetDownloadItem.hibernateClosure = {
-            assetDownloadItemHibernateExpectation.fulfill()
-        }
-        
-        assetDownloadItemFactory.assetDownloadItem = firstAssetDownloadItem
-        
-        sut.scheduleDownload(url: url, immediateDownload: false) { _ in }
-        
         sut.cancelDownload(url: url)
         
-        wait(for: [assetDownloadItemHibernateExpectation], timeout: 3)
+        waitForExpectations(timeout: 3, handler: nil)
         
-        let firstAssetDownloadItemCoalesceExpectation = expectation(description: "firstAssetDownloadItemCoalesceExpectation")
-        firstAssetDownloadItemCoalesceExpectation.isInverted = true
-        firstAssetDownloadItem.coalesceDownloadCompletionHandlerClosure = { _ in
-            firstAssetDownloadItemCoalesceExpectation.fulfill()
+        let resumeExpectation = expectation(description: "resumeExpectation")
+        downloadTask.resumeClosure = {
+            resumeExpectation.fulfill()
         }
-        
-        let secondAssetDownloadItemResumeExpectation = expectation(description: "secondAssetDownloadItemResumeExpectation")
-        secondAssetDownloadItemResumeExpectation.isInverted = true
-        secondAssetDownloadItem.resumeClosure = {
-            secondAssetDownloadItemResumeExpectation.fulfill()
-        }
-        
-        let firstAssetDownloadItemResumeExpectation = expectation(description: "firstAssetDownloadItemResumeExpectation")
-        firstAssetDownloadItem.resumeClosure = {
-            firstAssetDownloadItemResumeExpectation.fulfill()
-        }
-        
-        assetDownloadItemFactory.assetDownloadItem = secondAssetDownloadItem
         
         sut.scheduleDownload(url: url, immediateDownload: false) { _ in }
         
         waitForExpectations(timeout: 3, handler: nil)
     }
-    
-    func test_scheduleDownload_completeDownload_updateItemAsDone() {
-        let assetDownloadItem = MockAssetDownloadItem()
-        let doneExpectation = expectation(description: "doneExpectation")
-        assetDownloadItem.doneClosure = {
-            doneExpectation.fulfill()
+
+    func test_scheduleDownload_completeDownload_removeFromCachedDownloadAssetItems_requestingSameURLResultsInNewDownload() {
+        var downloadTaskCompletion: ((URL?, URLResponse?, Error?) -> Void)?
+        let firstDownloadTaskExpectation = expectation(description: "firstDownloadTaskExpectation")
+        session.downloadTaskClosure = { (_, completion) in
+            downloadTaskCompletion = completion
+            
+            firstDownloadTaskExpectation.fulfill()
         }
         
-        assetDownloadItemFactory.assetDownloadItem = assetDownloadItem
-        let assetDownloadItemExpectation = expectation(description: "assetDownloadItemExpectation")
-        var assetDownloadItemCompletionClosure: AssetDownloadItemType.DownloadCompletionHandler?
-        assetDownloadItemFactory.assetDownloadItemClosure = { (url, session, immediateDownload, completionHandler) in
-            assetDownloadItemCompletionClosure = completionHandler
-
-            assetDownloadItemExpectation.fulfill()
+        sut.scheduleDownload(url: url, immediateDownload: false) { (_) in }
+        
+        downloadTaskCompletion?(nil, nil, nil)
+        
+        waitForExpectations(timeout: 3, handler: nil)
+        
+        let secondDownloadTaskExpectation = expectation(description: "secondDownloadTaskExpectation")
+        session.downloadTaskClosure = { (_, _) in
+            secondDownloadTaskExpectation.fulfill()
         }
         
-        sut.scheduleDownload(url: url, immediateDownload: false) { _ in }
-    
-        wait(for: [assetDownloadItemExpectation], timeout: 3)
+        sut.scheduleDownload(url: url, immediateDownload: false) { (_) in }
         
-        let data = "success data".data(using: .utf8)!
-        let result = Result<Data, Error>.success(data)
-        assetDownloadItemCompletionClosure?(result)
-
-        wait(for: [doneExpectation], timeout: 3)
+        waitForExpectations(timeout: 3, handler: nil)
     }
-    
+
     func test_scheduleDownload_completeDownload_triggerCompletionClosure() {
-        let assetDownloadItem = MockAssetDownloadItem()
-        
-        assetDownloadItemFactory.assetDownloadItem = assetDownloadItem
-        let assetDownloadItemExpectation = expectation(description: "assetDownloadItemExpectation")
-        var assetDownloadItemCompletionClosure: AssetDownloadItemType.DownloadCompletionHandler?
-        assetDownloadItemFactory.assetDownloadItemClosure = { (url, session, immediateDownload, completionHandler) in
-            assetDownloadItemCompletionClosure = completionHandler
-            
-            assetDownloadItemExpectation.fulfill()
+        var downloadTaskCompletion: ((URL?, URLResponse?, Error?) -> Void)?
+        let firstDownloadTaskExpectation = expectation(description: "firstDownloadTaskExpectation")
+        session.downloadTaskClosure = { (_, completion) in
+            downloadTaskCompletion = completion
+          
+            firstDownloadTaskExpectation.fulfill()
         }
-        
+
         let completionExpectation = expectation(description: "completionExpectation")
-        let data = "success data".data(using: .utf8)!
-        
-        sut.scheduleDownload(url: url, immediateDownload: false) { returnedResult in
-            guard case let .success(returnedData) = returnedResult else {
-                XCTFail("Unexpected case returned")
-                return
-            }
-            
-            XCTAssertEqual(returnedData, data)
-            
+        sut.scheduleDownload(url: url, immediateDownload: false) { (_) in
             completionExpectation.fulfill()
         }
-        
-        wait(for: [assetDownloadItemExpectation], timeout: 3)
-        
-        let result = Result<Data, Error>.success(data)
-        assetDownloadItemCompletionClosure?(result)
-    
-        wait(for: [completionExpectation], timeout: 3)
-    }
-    
-    func test_scheduleDownload_completeDownload_removesDownload() {
-        let assetDownloadItem = MockAssetDownloadItem()
-        
-        assetDownloadItemFactory.assetDownloadItem = assetDownloadItem
-        var assetDownloadItemExpectation: XCTestExpectation? = expectation(description: "assetDownloadItemExpectation")
-        var assetDownloadItemCompletionClosure: AssetDownloadItemType.DownloadCompletionHandler?
-        assetDownloadItemFactory.assetDownloadItemClosure = { (url, session, immediateDownload, completionHandler) in
-            assetDownloadItemCompletionClosure = completionHandler
-            
-            assetDownloadItemExpectation?.fulfill()
-        }
-        
-        sut.scheduleDownload(url: url, immediateDownload: false) { _ in }
-    
-        waitForExpectations(timeout: 3, handler: nil)
-        
-        assetDownloadItemExpectation = nil
-        
-        let doneExpectation = expectation(description: "doneExpectation")
-        assetDownloadItem.doneClosure = {
-            doneExpectation.fulfill()
-        }
-        
-        let result = Result<Data, Error>.success("success data".data(using: .utf8)!)
-        assetDownloadItemCompletionClosure?(result)
-        
-        let coalesceExpectation = expectation(description: "coalesceExpectation")
-        coalesceExpectation.isInverted = true
-        assetDownloadItem.coalesceDownloadCompletionHandlerClosure = { _ in
-            coalesceExpectation.fulfill()
-        }
-        
-        sut.scheduleDownload(url: url, immediateDownload: false) { _ in }
-        
+
+        downloadTaskCompletion?(nil, nil, nil)
+
         waitForExpectations(timeout: 3, handler: nil)
     }
-    
+
     // MARK: Cancel
-    
-    func test_cancelDownload_activeDownload() {
-        let assetDownloadItem = MockAssetDownloadItem()
-        assetDownloadItem.url = url
-        
-        let assetDownloadItemHibernateExpectation = expectation(description: "assetDownloadItemHibernateExpectation")
-        assetDownloadItem.hibernateClosure = {
-            assetDownloadItemHibernateExpectation.fulfill()
+
+    func test_cancelDownload_download() {
+        let downloadTask = MockURLSessionDownloadTask()
+        let downloadTaskPauseExpectation = expectation(description: "downloadTaskPauseExpectation")
+        downloadTask.cancelByProducingResumeDataClosure = { (completion) in
+           downloadTaskPauseExpectation.fulfill()
         }
-        
-        assetDownloadItemFactory.assetDownloadItem = assetDownloadItem
-        
+
+        session.downloadTask = downloadTask
+
         sut.scheduleDownload(url: url, immediateDownload: false) { _ in }
-        
         sut.cancelDownload(url: url)
-        
-        waitForExpectations(timeout: 3, handler: nil)
-    }
-    
-    func test_cancelDownload_pausedDownload() {
-        let assetDownloadItem = MockAssetDownloadItem()
-        assetDownloadItem.url = url
-        
-        assetDownloadItemFactory.assetDownloadItem = assetDownloadItem
-        
-        sut.scheduleDownload(url: url, immediateDownload: false) { _ in }
-        
-        let immediateURL = URL(string: "http://differenturl.com/example")!
-        
-        let immediateAssetDownloadItem = MockAssetDownloadItem()
-        immediateAssetDownloadItem.url = immediateURL
-        let immediateResumeExpectation = expectation(description: "immediateResumeExpectation")
-        immediateAssetDownloadItem.resumeClosure = {
-            immediateAssetDownloadItem.isResumable = false
-            immediateResumeExpectation.fulfill()
-        }
-        
-        assetDownloadItemFactory.assetDownloadItem = immediateAssetDownloadItem
-        
-        sut.scheduleDownload(url: immediateURL, immediateDownload: true) { _ in }
-        
-        waitForExpectations(timeout: 3, handler: nil)
-        
-        let assetDownloadItemHibernateExpectation = expectation(description: "assetDownloadItemHibernateExpectation")
-        assetDownloadItem.hibernateClosure = {
-          assetDownloadItemHibernateExpectation.fulfill()
-        }
-        
-        sut.cancelDownload(url: url)
-        
+
         waitForExpectations(timeout: 3, handler: nil)
     }
 }

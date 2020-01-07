@@ -12,7 +12,7 @@ import Foundation
 
 class MockNotificationCenter: NotificationCenterType {
     
-    var addObserverClosure: ((_ name: NSNotification.Name?, _ obj: Any?, _ queue: OperationQueue?, _ block: ((Notification) -> Void)) -> ())?
+    var addObserverClosure: ((_ name: NSNotification.Name?, _ obj: Any?, _ queue: OperationQueue?, _ block: @escaping ((Notification) -> Void)) -> ())?
     
     func addObserver(forName name: NSNotification.Name?, object obj: Any?, queue: OperationQueue?, using block: @escaping (Notification) -> Void) -> NSObjectProtocol {
         addObserverClosure?(name, obj, queue, block)
