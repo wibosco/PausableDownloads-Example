@@ -25,7 +25,7 @@ class AssetDataManager {
         if fileManager.fileExists(atPath: asset.cachedLocalAssetURL().path) {
             locallyLoadAsset(asset, completionHandler: completionHandler)
         } else {
-            remotelyLoadAsset(asset, immediateDownload: false, completionHandler: completionHandler)
+            remotelyLoadAsset(asset, completionHandler: completionHandler)
         }
     }
     
@@ -35,7 +35,7 @@ class AssetDataManager {
         if fileManager.fileExists(atPath: asset.cachedLocalAssetURL().path) {
             locallyLoadAsset(asset, completionHandler: completionHandler)
         } else {
-            remotelyLoadAsset(asset, immediateDownload: true, completionHandler: completionHandler)
+            remotelyLoadAsset(asset, completionHandler: completionHandler)
         }
     }
     
@@ -61,13 +61,13 @@ class AssetDataManager {
                 completionHandler(dataRequestResult)
             }
         } catch {
-            remotelyLoadAsset(asset, immediateDownload: false, completionHandler: completionHandler)
+            remotelyLoadAsset(asset, completionHandler: completionHandler)
         }
     }
     
-    private func remotelyLoadAsset(_ asset: GalleryAsset, immediateDownload: Bool, completionHandler: @escaping ((_ result: Result<LoadAssetResult, Error>) -> ())) {
+    private func remotelyLoadAsset(_ asset: GalleryAsset, completionHandler: @escaping ((_ result: Result<LoadAssetResult, Error>) -> ())) {
         
-        assetDownloadSession.scheduleDownload(url: asset.url, immediateDownload: immediateDownload) { (result) in
+        assetDownloadSession.scheduleDownload(url: asset.url) { (result) in
             switch result {
             case .success(let data):
                 guard let image = UIImage(data: data) else {

@@ -18,7 +18,6 @@ extension NotificationCenter: NotificationCenterType { }
 
 class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDownloadDelegate {
     
-    private var immediateAssetDownloadItem: AssetDownloadItem?
     private var assetDownloadItems = [AssetDownloadItem]()
     
     private let accessQueue = DispatchQueue(label: "com.williamboles.downloadssession")
@@ -46,15 +45,15 @@ class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDown
     private func registerForNotifications() {
         notificationCenter.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main) { _ in
             self.accessQueue.sync {
-                os_log(.info, "Cancelling hibernating items")
+                os_log(.info, "Cancelling paused items")
                 
                 self.assetDownloadItems = self.assetDownloadItems.filter { (assetDownloadItem) -> Bool in
-                    let hibernating = assetDownloadItem.state == .hibernating
-                    if hibernating {
+                    let isPaused = assetDownloadItem.state == .paused
+                    if isPaused {
                         assetDownloadItem.cancel()
                     }
                     
-                    return !hibernating
+                    return !isPaused
                 }
             }
         }
@@ -62,105 +61,38 @@ class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDown
     
     // MARK: - Schedule
     
-    func scheduleDownload(url: URL, immediateDownload: Bool, completionHandler: @escaping ((_ result: Result<Data, Error>) -> ())) {
+    func scheduleDownload(url: URL, completionHandler: @escaping DownloadCompletionHandler) {
         accessQueue.sync {
-            let potentialImmediateAssetDownloadItem: AssetDownloadItem
-            
-            if let existingAssetDownloadItem = coalescableAssetDownloadItem(withURL: url) {
-                switch existingAssetDownloadItem.state {
-                case .downloading, .paused:
-                    os_log(.info, "Found existing %{public}@ download so coalescing them for: %{public}@", existingAssetDownloadItem.state.rawValue, existingAssetDownloadItem.description)
-                    existingAssetDownloadItem.coalesceDownloadCompletionHandler(completionHandler)
-                case .hibernating:
-                    os_log(.info, "Found existing hibernating download so reviving download for: %{public}@", existingAssetDownloadItem.description)
-                    //as the download is in hibernation no need to coalesce - just override
-                    existingAssetDownloadItem.downloadCompletionHandler = completionHandler
-                    existingAssetDownloadItem.awaken()
-                default:
-                    assertionFailure("Unexpected state for an existing download")
-                }
+            if let existingCoalescableAssetDownloadItem = coalescableAssetDownloadItem(withURL: url) {
+                os_log(.info, "Found existing %{public}@ download so coalescing them for: %{public}@", existingCoalescableAssetDownloadItem.state.rawValue, existingCoalescableAssetDownloadItem.description)
+                existingCoalescableAssetDownloadItem.coalesceDownloadCompletionHandler(completionHandler)
                 
-                potentialImmediateAssetDownloadItem = existingAssetDownloadItem
+                if existingCoalescableAssetDownloadItem.isResumable {
+                    existingCoalescableAssetDownloadItem.resume()
+                }
             } else {
-                let assetDownloadItem = self.assetDownloadItem(forURL: url, session: session, delegate: self, downloadCompletionHandler: completionHandler)
-                assetDownloadItems.append(assetDownloadItem)
-                os_log(.info, "Adding new download: %{public}@", assetDownloadItem.description)
+                let assetDownloadItem = AssetDownloadItem(session: session, url: url)
+                assetDownloadItem.downloadCompletionHandler = completionHandler
+                assetDownloadItem.delegate = self
                 
-                potentialImmediateAssetDownloadItem = assetDownloadItem
-            }
-            
-            if immediateDownload {
-                immediateAssetDownloadItem = potentialImmediateAssetDownloadItem
-                pauseNonImmediateDownloads()
-            }
-            
-            startDownloads()
-        }
-    }
-    
-    private func assetDownloadItem(forURL url: URL, session: URLSessionType, delegate: AssetDownloadItemDelegate, downloadCompletionHandler: @escaping AssetDownloadItem.DownloadCompletionHandler) -> AssetDownloadItem {
-        let assetDownloadItem = AssetDownloadItem(session: session, url: url)
-        assetDownloadItem.downloadCompletionHandler = downloadCompletionHandler
-        assetDownloadItem.delegate = delegate
-        
-        return assetDownloadItem
-    }
-    
-    // MARK: - Download
-    
-    private func startDownloads() {
-        if let immediateAssetDownloadItem = immediateAssetDownloadItem {
-            os_log(.info, "Operating in single download mode")
-            if immediateAssetDownloadItem.isResumable {
-                immediateAssetDownloadItem.resume()
-            }
-        } else {
-            let pausedAssetDownloadItems = self.pausedAssetDownloadItems()
-            if pausedAssetDownloadItems.count > 0 {
-                os_log(.info, "Operating in multiple download mode")
-                for assetDownloadItem in pausedAssetDownloadItems {
-                    os_log(.info, "Started downloading of: %{public}@", assetDownloadItem.description)
-                    assetDownloadItem.resume()
-                }
+                os_log(.info, "Created a new download: %{public}@", assetDownloadItem.description)
+                
+                assetDownloadItems.append(assetDownloadItem)
+                
+                assetDownloadItem.resume()
             }
         }
-        
-        let downloadingAssetDownloadItems = self.downloadingAssetDownloadItems()
-        os_log(.info, "Currently downloading %{public}d assets", downloadingAssetDownloadItems.count)
     }
     
     // MARK: - Cancel
     
     func cancelDownload(url: URL) {
         accessQueue.sync {
-            let assetDownloadItem = assetDownloadItems.first { $0.url == url }
-            guard let assetDownloadItemToBeSuspended = assetDownloadItem else {
+            guard let assetDownloadItem = assetDownloadItems.first(where: { $0.url == url }) else {
                 return
             }
             
-            os_log(.info, "Download: %{public}@ going into hibernation", assetDownloadItemToBeSuspended.description)
-            assetDownloadItemToBeSuspended.hibernate()
-            
-            if immediateAssetDownloadItem == assetDownloadItemToBeSuspended {
-                immediateAssetDownloadItem = nil
-            }
-            
-            //Start any waiting downloads
-            startDownloads()
-        }
-    }
-    
-    // MARK: - Pause
-    
-    private func pauseNonImmediateDownloads() {
-        let downloadingAssetDownloadItems = self.downloadingAssetDownloadItems()
-        guard downloadingAssetDownloadItems.count > 0 else {
-            return
-        }
-        
-        os_log(.info, "Pausing %{public}d active downloads", downloadingAssetDownloadItems.count)
-        
-        for assetDownloadItem in downloadingAssetDownloadItems where assetDownloadItem != immediateAssetDownloadItem {
+            os_log(.info, "Download: %{public}@ going to paused", assetDownloadItem.description)
             assetDownloadItem.pause()
         }
     }
@@ -169,10 +101,6 @@ class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDown
     
     private func finishedDownload(ofAssetDownloadItem assetDownloadItem: AssetDownloadItem) {
         os_log(.info, "Finished download of: %{public}@", assetDownloadItem.description)
-        
-        if immediateAssetDownloadItem == assetDownloadItem {
-            immediateAssetDownloadItem = nil
-        }
         
         if let index = assetDownloadItems.firstIndex(of: assetDownloadItem) {
             assetDownloadItems.remove(at: index)
@@ -200,7 +128,6 @@ class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDown
     fileprivate func assetDownloadItemDone(_ assetDownloadItem: AssetDownloadItem) {
         accessQueue.sync {
             self.finishedDownload(ofAssetDownloadItem: assetDownloadItem)
-            self.startDownloads()
         }
     }
     
@@ -218,9 +145,9 @@ class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDown
 }
 
 fileprivate enum State: String {
+    case ready
     case downloading
     case paused
-    case hibernating
     case cancelled
     case done
 }
@@ -229,9 +156,9 @@ fileprivate protocol AssetDownloadItemDelegate {
     func assetDownloadItemDone(_ assetDownloadItem: AssetDownloadItem)
 }
 
+typealias DownloadCompletionHandler = ((_ result: Result<Data, Error>) -> ())
+
 fileprivate class AssetDownloadItem: Equatable {
-    
-    typealias DownloadCompletionHandler = ((_ result: Result<Data, Error>) -> ())
     
     private let callbackQueue: OperationQueue
     private let session: URLSessionType
@@ -245,20 +172,20 @@ fileprivate class AssetDownloadItem: Equatable {
     var downloadCompletionHandler: DownloadCompletionHandler?
     
     let url: URL
-    private(set) var state: State = .paused
+    private(set) var state: State = .ready
     
     var description: String {
         return url.absoluteString
     }
     
     var isCoalescable: Bool {
-        return (state == .downloading) ||
-            (state == .paused) ||
-            (state == .hibernating)
+        return (state == .ready) ||
+            (state == .downloading) ||
+            (state == .paused)
     }
     
     var isResumable: Bool {
-        return (state == .paused)
+        return (state == . ready || state == .paused)
     }
     
     // MARK: - Init
@@ -284,7 +211,7 @@ fileprivate class AssetDownloadItem: Equatable {
         state = .downloading
         
         let completionHandler: ((_ fileLocationURL: URL?, _ response: URLResponse?, _ error: Error?) -> ()) = { (fileLocationURL, response, error) in
-            if let error = error, (error as NSError).code == NSURLErrorCancelled, (self.state == .paused || self.state == .hibernating) {
+            if let error = error, (error as NSError).code == NSURLErrorCancelled, self.state == .paused {
                 //Download cancelled due to being paused so lets eat this error
                 return
             }
@@ -330,16 +257,6 @@ fileprivate class AssetDownloadItem: Equatable {
         state = .paused
         
         cancelAndSaveData()
-    }
-    
-    func hibernate() {
-        state = .hibernating
-        
-        cancelAndSaveData()
-    }
-    
-    func awaken() {
-        state = .paused
     }
     
     private func cancelAndSaveData() {
