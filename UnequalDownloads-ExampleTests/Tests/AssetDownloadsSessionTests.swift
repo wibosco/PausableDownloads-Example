@@ -259,7 +259,7 @@ class AssetDownloadsSessionTests: XCTestCase {
 
     // MARK: Cancel
 
-    func test_cancelDownload_download() {
+    func test_cancelDownload_cancelByProducingResumeData() {
         let downloadTask = MockURLSessionDownloadTask()
         let downloadTaskPauseExpectation = expectation(description: "downloadTaskPauseExpectation")
         downloadTask.cancelByProducingResumeDataClosure = { (completion) in
@@ -267,7 +267,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         }
 
         session.downloadTask = downloadTask
-
+        
         sut.scheduleDownload(url: url) { _ in }
         sut.cancelDownload(url: url)
 

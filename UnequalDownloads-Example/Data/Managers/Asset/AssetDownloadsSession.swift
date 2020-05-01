@@ -22,7 +22,6 @@ class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDown
     
     private let accessQueue = DispatchQueue(label: "com.williamboles.downloadssession")
     
-    private let notificationCenter: NotificationCenterType
     private var session: URLSessionType!
     
     // MARK: - Singleton
@@ -32,17 +31,15 @@ class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDown
     // MARK: - Init
     
     init(urlSessionFactory: URLSessionFactoryType = URLSessionFactory(), notificationCenter: NotificationCenterType = NotificationCenter.default) {
-        self.notificationCenter = notificationCenter
-        
         super.init()
         
         self.session = urlSessionFactory.defaultSession(delegate: self)
-        registerForNotifications()
+        registerForNotifications(on: notificationCenter)
     }
     
     // MARK: - Notification
     
-    private func registerForNotifications() {
+    private func registerForNotifications(on notificationCenter: NotificationCenterType) {
         notificationCenter.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main) { _ in
             self.accessQueue.sync {
                 os_log(.info, "Cancelling paused items")
@@ -97,26 +94,6 @@ class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDown
         }
     }
     
-    // MARK: - Finished
-    
-    private func finishedDownload(ofAssetDownloadItem assetDownloadItem: AssetDownloadItem) {
-        os_log(.info, "Finished download of: %{public}@", assetDownloadItem.description)
-        
-        if let index = assetDownloadItems.firstIndex(of: assetDownloadItem) {
-            assetDownloadItems.remove(at: index)
-        }
-    }
-    
-    // MARK: - Query
-    
-    private func pausedAssetDownloadItems() -> [AssetDownloadItem] {
-        return assetDownloadItems.filter { $0.state == .paused }
-    }
-    
-    private func downloadingAssetDownloadItems() -> [AssetDownloadItem] {
-        return assetDownloadItems.filter { $0.state == .downloading }
-    }
-    
     // MARK: - Search
     
     private func coalescableAssetDownloadItem(withURL url: URL) -> AssetDownloadItem? {
@@ -127,7 +104,11 @@ class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDown
     
     fileprivate func assetDownloadItemDone(_ assetDownloadItem: AssetDownloadItem) {
         accessQueue.sync {
-            self.finishedDownload(ofAssetDownloadItem: assetDownloadItem)
+            os_log(.info, "Finished download of: %{public}@", assetDownloadItem.description)
+            
+            if let index = assetDownloadItems.firstIndex(of: assetDownloadItem) {
+                assetDownloadItems.remove(at: index)
+            }
         }
     }
     
@@ -185,7 +166,8 @@ fileprivate class AssetDownloadItem: Equatable {
     }
     
     var isResumable: Bool {
-        return (state == . ready || state == .paused)
+        return (state == . ready) ||
+            (state == .paused)
     }
     
     // MARK: - Init
@@ -203,39 +185,29 @@ fileprivate class AssetDownloadItem: Equatable {
     // MARK: - Lifecycle
     
     func resume() {
-        guard isResumable else {
-            assertionFailure("Asset can't be resumed")
-            return
-        }
-        
         state = .downloading
         
-        let completionHandler: ((_ fileLocationURL: URL?, _ response: URLResponse?, _ error: Error?) -> ()) = { (fileLocationURL, response, error) in
-            if let error = error, (error as NSError).code == NSURLErrorCancelled, self.state == .paused {
-                //Download cancelled due to being paused so lets eat this error
-                return
-            }
-            
+        let completionHandler: ((_ fileLocationURL: URL?, _ response: URLResponse?, _ error: Error?) -> ()) = { [weak self] (fileLocationURL, response, error) in
             guard let fileLocationURL = fileLocationURL else {
-                self.callbackQueue.addOperation {
-                    self.downloadCompletionHandler?(.failure(NetworkingError.retrieval(underlayingError: error)))
+                self?.callbackQueue.addOperation {
+                    self?.downloadCompletionHandler?(.failure(NetworkingError.retrieval(underlayingError: error)))
                 }
-                self.done()
+                self?.done()
                 return
             }
             
             do {
                 let data = try Data(contentsOf: fileLocationURL)
-                self.callbackQueue.addOperation {
-                    self.downloadCompletionHandler?(.success(data))
+                self?.callbackQueue.addOperation {
+                    self?.downloadCompletionHandler?(.success(data))
                 }
             } catch let error {
-                self.callbackQueue.addOperation {
-                    self.downloadCompletionHandler?(.failure(NetworkingError.invalidData(underlayingError: error)))
+                self?.callbackQueue.addOperation {
+                    self?.downloadCompletionHandler?(.failure(NetworkingError.invalidData(underlayingError: error)))
                 }
             }
             
-            self.done()
+            self?.done()
         }
         
         if let resumptionData = resumptionData {
