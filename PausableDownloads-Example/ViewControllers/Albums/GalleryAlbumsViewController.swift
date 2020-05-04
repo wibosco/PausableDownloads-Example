@@ -1,5 +1,5 @@
 //
-//  GalleryViewController.swift
+//  GalleryAlbumsViewController.swift
 //  PausableDownloads-Example
 //
 //  Created by William Boles on 17/01/2018.
@@ -8,7 +8,7 @@
 
 import UIKit
 
-class AlbumsViewController: UIViewController {
+class GalleryAlbumsViewController: UIViewController {
     
     @IBOutlet weak var collectionView: UICollectionView!
     @IBOutlet weak var loadingActivityIndicatorView: UIActivityIndicatorView!
@@ -48,8 +48,8 @@ class AlbumsViewController: UIViewController {
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if segue.identifier == "showAlbum" {
-            guard let viewController = segue.destination as? AlbumViewerViewController,
-                let cell = sender as? AlbumCollectionViewCell,
+            guard let viewController = segue.destination as? GalleryAlbumViewerViewController,
+                let cell = sender as? GalleryAlbumCollectionViewCell,
                 let indexPath = collectionView.indexPath(for: cell) else {
                     return
             }
@@ -76,15 +76,15 @@ class AlbumsViewController: UIViewController {
     }
 }
 
-extension AlbumsViewController: UICollectionViewDataSource {
+extension GalleryAlbumsViewController: UICollectionViewDataSource {
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         return galleryAlbums.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: AlbumCollectionViewCell.className, for: indexPath) as? AlbumCollectionViewCell else {
-            fatalError("Expected cell of type: \(AlbumCollectionViewCell.className)")
+        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: GalleryAlbumCollectionViewCell.className, for: indexPath) as? GalleryAlbumCollectionViewCell else {
+            fatalError("Expected cell of type: \(GalleryAlbumCollectionViewCell.className)")
         }
         
         let galleryAlbum = galleryAlbums[indexPath.row]
@@ -95,7 +95,7 @@ extension AlbumsViewController: UICollectionViewDataSource {
     }
 }
 
-extension AlbumsViewController: UICollectionViewDelegateFlowLayout {
+extension GalleryAlbumsViewController: UICollectionViewDelegateFlowLayout {
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
         let cellWidth = (view.frame.size.width - 12.0)/3.0

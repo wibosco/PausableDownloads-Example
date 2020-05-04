@@ -1,5 +1,5 @@
 //
-//  AlbumViewerViewController.swift
+//  GalleryAlbumViewerViewController.swift
 //  PausableDownloads-Example
 //
 //  Created by William Boles on 07/01/2018.

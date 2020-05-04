@@ -19,9 +19,7 @@ extension NotificationCenter: NotificationCenterType { }
 class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDownloadDelegate {
     
     private var assetDownloadItems = [AssetDownloadItem]()
-    
     private let accessQueue = DispatchQueue(label: "com.williamboles.downloadssession")
-    
     private var session: URLSessionType!
     
     // MARK: - Singleton
@@ -40,18 +38,22 @@ class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDown
     // MARK: - Notification
     
     private func registerForNotifications(on notificationCenter: NotificationCenterType) {
-        notificationCenter.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main) { _ in
-            self.accessQueue.sync {
-                os_log(.info, "Cancelling paused items")
-                
-                self.assetDownloadItems = self.assetDownloadItems.filter { (assetDownloadItem) -> Bool in
-                    let isPaused = assetDownloadItem.state == .paused
-                    if isPaused {
-                        assetDownloadItem.cancel()
-                    }
-                    
-                    return !isPaused
+        notificationCenter.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.purgePausedDownloads()
+        }
+    }
+    
+    private func purgePausedDownloads() {
+        accessQueue.sync {
+            os_log(.info, "Cancelling paused items")
+            
+            assetDownloadItems = assetDownloadItems.filter { (assetDownloadItem) -> Bool in
+                let isPaused = assetDownloadItem.isPaused
+                if isPaused {
+                    assetDownloadItem.cancel()
                 }
+                
+                return !isPaused
             }
         }
     }
@@ -60,12 +62,13 @@ class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDown
     
     func scheduleDownload(url: URL, completionHandler: @escaping DownloadCompletionHandler) {
         accessQueue.sync {
-            if let existingCoalescableAssetDownloadItem = coalescableAssetDownloadItem(withURL: url) {
-                os_log(.info, "Found existing %{public}@ download so coalescing them for: %{public}@", existingCoalescableAssetDownloadItem.state.rawValue, existingCoalescableAssetDownloadItem.description)
-                existingCoalescableAssetDownloadItem.coalesceDownloadCompletionHandler(completionHandler)
+            if let assetDownloadItem = assetDownloadItems.first(where: { $0.url == url && $0.isCoalescable }) {
+                os_log(.info, "Found existing %{public}@ download so coalescing them for: %{public}@", assetDownloadItem.state.rawValue, assetDownloadItem.description)
                 
-                if existingCoalescableAssetDownloadItem.isResumable {
-                    existingCoalescableAssetDownloadItem.resume()
+                assetDownloadItem.coalesceDownloadCompletionHandler(completionHandler)
+                
+                if assetDownloadItem.isResumable {
+                    assetDownloadItem.resume()
                 }
             } else {
                 let assetDownloadItem = AssetDownloadItem(session: session, url: url)
@@ -94,19 +97,13 @@ class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDown
         }
     }
     
-    // MARK: - Search
-    
-    private func coalescableAssetDownloadItem(withURL url: URL) -> AssetDownloadItem? {
-        return assetDownloadItems.first { $0.url == url && $0.isCoalescable }
-    }
-    
     // MARK: - AssetDownloadItemDelegate
     
-    fileprivate func assetDownloadItemDone(_ assetDownloadItem: AssetDownloadItem) {
+    fileprivate func assetDownloadItemCompleted(_ assetDownloadItem: AssetDownloadItem) {
         accessQueue.sync {
-            os_log(.info, "Finished download of: %{public}@", assetDownloadItem.description)
+            os_log(.info, "Completed download of: %{public}@", assetDownloadItem.description)
             
-            if let index = assetDownloadItems.firstIndex(of: assetDownloadItem) {
+            if let index = assetDownloadItems.firstIndex(where: { $0.url == assetDownloadItem.url && $0.isCompleted }) {
                 assetDownloadItems.remove(at: index)
             }
         }
@@ -130,28 +127,24 @@ fileprivate enum State: String {
     case downloading
     case paused
     case cancelled
-    case done
+    case completed
 }
 
 fileprivate protocol AssetDownloadItemDelegate {
-    func assetDownloadItemDone(_ assetDownloadItem: AssetDownloadItem)
+    func assetDownloadItemCompleted(_ assetDownloadItem: AssetDownloadItem)
 }
 
 typealias DownloadCompletionHandler = ((_ result: Result<Data, Error>) -> ())
 
-fileprivate class AssetDownloadItem: Equatable {
+fileprivate class AssetDownloadItem {
     
-    private let callbackQueue: OperationQueue
     private let session: URLSessionType
-    
     private var resumptionData: Data?
     private var downloadTask: URLSessionDownloadTaskType?
     private var observation: NSKeyValueObservation?
     
     var delegate: AssetDownloadItemDelegate?
-    
     var downloadCompletionHandler: DownloadCompletionHandler?
-    
     let url: URL
     private(set) var state: State = .ready
     
@@ -170,10 +163,17 @@ fileprivate class AssetDownloadItem: Equatable {
             (state == .paused)
     }
     
+    var isPaused: Bool {
+        return state == .paused
+    }
+    
+    var isCompleted: Bool {
+        return state == .completed
+    }
+    
     // MARK: - Init
     
-    init(callbackQueue: OperationQueue? = OperationQueue.current, session: URLSessionType, url: URL) {
-        self.callbackQueue = callbackQueue ?? OperationQueue.main
+    init(session: URLSessionType, url: URL) {
         self.session = session
         self.url = url
     }
@@ -187,35 +187,12 @@ fileprivate class AssetDownloadItem: Equatable {
     func resume() {
         state = .downloading
         
-        let completionHandler: ((_ fileLocationURL: URL?, _ response: URLResponse?, _ error: Error?) -> ()) = { [weak self] (fileLocationURL, response, error) in
-            guard let fileLocationURL = fileLocationURL else {
-                self?.callbackQueue.addOperation {
-                    self?.downloadCompletionHandler?(.failure(NetworkingError.retrieval(underlayingError: error)))
-                }
-                self?.done()
-                return
-            }
-            
-            do {
-                let data = try Data(contentsOf: fileLocationURL)
-                self?.callbackQueue.addOperation {
-                    self?.downloadCompletionHandler?(.success(data))
-                }
-            } catch let error {
-                self?.callbackQueue.addOperation {
-                    self?.downloadCompletionHandler?(.failure(NetworkingError.invalidData(underlayingError: error)))
-                }
-            }
-            
-            self?.done()
-        }
-        
         if let resumptionData = resumptionData {
             os_log(.info, "Attempting to resume download task")
-            downloadTask = session.downloadTask(withResumeData: resumptionData, completionHandler: completionHandler)
+            downloadTask = session.downloadTask(withResumeData: resumptionData, completionHandler: handleDownloadTaskComplete)
         } else {
             os_log(.info, "Creating a new download task")
-            downloadTask = session.downloadTask(with: url, completionHandler: completionHandler)
+            downloadTask = session.downloadTask(with: url, completionHandler: handleDownloadTaskComplete)
         }
         
         observation = downloadTask?.progress.observe(\.fractionCompleted, options: [.new]) { [weak self] (progress, change) in
@@ -223,6 +200,37 @@ fileprivate class AssetDownloadItem: Equatable {
         }
         
         downloadTask?.resume()
+    }
+    
+    private func handleDownloadTaskComplete(_ fileLocationURL: URL?, _ response: URLResponse?, _ error: Error?) {
+        var result: Result<Data, Error>
+        defer {
+            downloadCompletionHandler?(result)
+            
+            /* A paused download triggers its URLSessionDownloadTask instances
+             completion closure but we don't consider this AssetDownloadItem
+             instance complete until it has either finished downloading (data or
+             error) or been cancelled. So we need to suppress the call to
+             `complete()` here for paused downloads.
+             */
+            if !isPaused {
+                complete()
+            }
+            
+            cleanup()
+        }
+        
+        guard let fileLocationURL = fileLocationURL else {
+            result = .failure(NetworkingError.retrieval(underlayingError: error))
+            return
+        }
+        
+        do {
+            let data = try Data(contentsOf: fileLocationURL)
+            result = .success(data)
+        } catch let error {
+            result = .failure(NetworkingError.invalidData(underlayingError: error))
+        }
     }
     
     func pause() {
@@ -245,24 +253,19 @@ fileprivate class AssetDownloadItem: Equatable {
     func cancel() {
         state = .cancelled
         
-        downloadTask?.cancel() 
-        
-        cleanup()
+        downloadTask?.cancel()
     }
     
-    func done() {
-        state = .done
+    private func complete() {
+        state = .completed
         
-        callbackQueue.addOperation {
-            self.delegate?.assetDownloadItemDone(self)
-        }
-        
-        cleanup()
+        delegate?.assetDownloadItemCompleted(self)
     }
     
     private func cleanup() {
         observation?.invalidate()
         downloadTask = nil
+        downloadCompletionHandler = nil
     }
     
     //MARK: - Coalesce
@@ -274,12 +277,6 @@ fileprivate class AssetDownloadItem: Equatable {
             initalDownloadCompletionHandler?(result)
             otherDownloadCompletionHandler(result)
         }
-    }
-    
-    // MARK: - Equatable
-    
-    static func == (lhs: AssetDownloadItem, rhs: AssetDownloadItem) -> Bool {
-        return lhs.url == rhs.url
     }
 }
 

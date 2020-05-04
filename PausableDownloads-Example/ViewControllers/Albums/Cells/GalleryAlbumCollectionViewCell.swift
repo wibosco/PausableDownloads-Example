@@ -1,5 +1,5 @@
 //
-//  AlbumCollectionViewCell.swift
+//  GalleryAlbumCollectionViewCell.swift
 //  PausableDownloads-Example
 //
 //  Created by William Boles on 17/01/2018.
@@ -8,7 +8,7 @@
 
 import UIKit
 
-class AlbumCollectionViewCell: UICollectionViewCell {
+class GalleryAlbumCollectionViewCell: UICollectionViewCell {
 
     @IBOutlet weak var informationalLabel: UILabel!
     @IBOutlet weak var thumbnailImageView: UIImageView!

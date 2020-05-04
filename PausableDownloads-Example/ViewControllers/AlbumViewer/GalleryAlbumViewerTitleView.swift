@@ -1,5 +1,5 @@
 //
-//  AlbumViewerTitleView.swift
+//  GalleryAlbumViewerTitleView.swift
 //  PausableDownloads-Example
 //
 //  Created by William Boles on 20/01/2018.
@@ -8,7 +8,7 @@
 
 import UIKit
 
-class AlbumViewerTitleView: UIView {
+class GalleryAlbumViewerTitleView: UIView {
     
     @IBOutlet weak var titleLabel: UILabel!
     @IBOutlet weak var subtitleLabel: UILabel!

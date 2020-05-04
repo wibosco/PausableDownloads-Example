@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import os
 
 enum HTTPRequestMethod: String {
     case get = "GET"
@@ -29,11 +30,13 @@ class RequestConfig {
     // MARK: - Init
     
     init() {
-        self.clientID = "Replace" //TODO: Added youe clientID here
+        self.clientID = "REPLACE_ME" //TODO: Added your clientID here
         self.APIHost = "https://api.imgur.com/3"
         self.timeInterval = 45
         self.cachePolicy = .useProtocolCachePolicy
         
-        assert(!clientID.isEmpty, "You need to provide a clientID hash, you get this from: https://api.imgur.com/oauth2/addclient")
+        if clientID == "REPLACE_ME" {
+            os_log(.info, "You need to provide a clientID hash, you get this from: https://api.imgur.com/oauth2/addclient")
+        }
     }
 }
