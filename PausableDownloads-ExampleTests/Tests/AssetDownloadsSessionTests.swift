@@ -17,7 +17,6 @@ class AssetDownloadsSessionTests: XCTestCase {
     var sessionFactory: MockURLSessionFactory!
     var session: MockURLSession!
     var notificationCenter: MockNotificationCenter!
-//    var assetDownloadItemFactory: MockAssetDownloadItemFactory!
     
     let url = URL(string: "http://test.com/example")!
     
@@ -30,7 +29,6 @@ class AssetDownloadsSessionTests: XCTestCase {
         session = MockURLSession()
         sessionFactory.defaultSession = session
         notificationCenter = MockNotificationCenter()
-//        assetDownloadItemFactory = MockAssetDownloadItemFactory()
         
         sut = AssetDownloadsSession(urlSessionFactory: sessionFactory, notificationCenter: notificationCenter)
     }
@@ -39,7 +37,6 @@ class AssetDownloadsSessionTests: XCTestCase {
         notificationCenter = nil
         sessionFactory = nil
         session = nil
-//        assetDownloadItemFactory = nil
         
         sut = nil
         
