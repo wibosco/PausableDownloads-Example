@@ -50,7 +50,7 @@ class AssetDataManager {
             let data = try Data(contentsOf: URL(fileURLWithPath: asset.cachedLocalAssetURL().path))
             
             guard let image = UIImage(data: data) else {
-                completionHandler(.failure(NetworkingError.invalidData(underlayingError: nil)))
+                completionHandler(.failure(NetworkingError.invalidData(underlyingError: nil)))
                 return
             }
             
@@ -71,14 +71,14 @@ class AssetDataManager {
             switch result {
             case .success(let data):
                 guard let image = UIImage(data: data) else {
-                    completionHandler(.failure(NetworkingError.invalidData(underlayingError: nil)))
+                    completionHandler(.failure(NetworkingError.invalidData(underlyingError: nil)))
                     return
                 }
                 
                 do {
                     try data.write(to: asset.cachedLocalAssetURL(), options: .atomic)
                 } catch let error {
-                    completionHandler(.failure(NetworkingError.invalidData(underlayingError: error)))
+                    completionHandler(.failure(NetworkingError.invalidData(underlyingError: error)))
                 }
                 
                 let loadResult = LoadAssetResult(asset: asset, image: image)

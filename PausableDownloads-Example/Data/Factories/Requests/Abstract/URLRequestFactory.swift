@@ -10,8 +10,8 @@ import Foundation
 
 enum NetworkingError: Error {
     case unknown
-    case retrieval(underlayingError: Error?)
-    case invalidData(underlayingError: Error?)
+    case retrieval(underlyingError: Error?)
+    case invalidData(underlyingError: Error?)
 }
 
 class URLRequestFactory {

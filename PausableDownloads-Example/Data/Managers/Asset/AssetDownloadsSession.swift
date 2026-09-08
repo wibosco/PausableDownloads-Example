@@ -221,7 +221,7 @@ fileprivate class AssetDownloadItem {
         }
         
         guard let fileLocationURL = fileLocationURL else {
-            result = .failure(NetworkingError.retrieval(underlayingError: error))
+            result = .failure(NetworkingError.retrieval(underlyingError: error))
             return
         }
         
@@ -229,7 +229,7 @@ fileprivate class AssetDownloadItem {
             let data = try Data(contentsOf: fileLocationURL)
             result = .success(data)
         } catch let error {
-            result = .failure(NetworkingError.invalidData(underlayingError: error))
+            result = .failure(NetworkingError.invalidData(underlyingError: error))
         }
     }
     
@@ -271,10 +271,10 @@ fileprivate class AssetDownloadItem {
     //MARK: - Coalesce
     
     func coalesceDownloadCompletionHandler(_ otherDownloadCompletionHandler: @escaping DownloadCompletionHandler) {
-        let initalDownloadCompletionHandler = downloadCompletionHandler
+        let initialDownloadCompletionHandler = downloadCompletionHandler
         
         downloadCompletionHandler = { result in
-            initalDownloadCompletionHandler?(result)
+            initialDownloadCompletionHandler?(result)
             otherDownloadCompletionHandler(result)
         }
     }

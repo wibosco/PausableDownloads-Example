@@ -28,7 +28,7 @@ class GalleryDataManager {
         let task = session.dataTask(with: request) { (data: Data?, response: URLResponse?, error: Error?) in
             guard let data = data else {
                 DispatchQueue.main.async {
-                    let retrievalError = NetworkingError.retrieval(underlayingError: error)
+                    let retrievalError = NetworkingError.retrieval(underlyingError: error)
                     completionHandler(searchTerms, Result.failure(retrievalError))
                 }
                 return
@@ -45,7 +45,7 @@ class GalleryDataManager {
                 }
             } catch let error {
                 DispatchQueue.main.async {
-                    let invalidError = NetworkingError.invalidData(underlayingError: error)
+                    let invalidError = NetworkingError.invalidData(underlyingError: error)
                     completionHandler(searchTerms, Result.failure(invalidError))
                 }
             }
