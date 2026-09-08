@@ -1,6 +1,6 @@
-[![Build Status](https://travis-ci.org/wibosco/UnequalDownloads-Example.svg)](https://travis-ci.org/wibosco/PausableDownloads-Example)
-<a href="https://swift.org"><img src="https://img.shields.io/badge/Swift-5-orange.svg?style=flat" alt="Swift" /></a>
-<a href="https://twitter.com/wibosco"><img src="https://img.shields.io/badge/twitter-@wibosco-blue.svg?style=flat" alt="Twitter: @wibosco" /></a>
+[![Build](https://github.com/wibosco/PausableDownloads-Example/actions/workflows/swift.yml/badge.svg)](https://github.com/wibosco/PausableDownloads-Example/actions/workflows/swift.yml)
+<a href="https://swift.org"><img src="https://img.shields.io/badge/Swift-5-orange.svg?style=flat" alt="Swift 5" /></a>
+[![License](http://img.shields.io/badge/License-MIT-green.svg?style=flat)](https://github.com/wibosco/PausableDownloads-Example/blob/main/LICENSE)
 
 # PausableDownloads-Example
 An example project about pausing and resuming download requests, https://williamboles.com/not-all-downloads-are-born-equal/
