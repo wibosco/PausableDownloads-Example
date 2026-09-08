@@ -28,7 +28,8 @@ class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDown
     
     // MARK: - Init
     
-    init(urlSessionFactory: URLSessionFactoryType = URLSessionFactory(), notificationCenter: NotificationCenterType = NotificationCenter.default) {
+    init(urlSessionFactory: URLSessionFactoryType = URLSessionFactory(),
+         notificationCenter: NotificationCenterType = NotificationCenter.default) {
         super.init()
         
         self.session = urlSessionFactory.defaultSession(delegate: self)
