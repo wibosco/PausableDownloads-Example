@@ -2,7 +2,7 @@
 //  GalleryAlbumViewerViewController.swift
 //  PausableDownloads-Example
 //
-//  Created by William Boles on 07/01/2018.
+//  Created by William Boles on 15/01/2018.
 //  Copyright © 2018 William Boles. All rights reserved.
 //
 
@@ -14,11 +14,9 @@ class GalleryAlbumViewerViewController: UIViewController {
     @IBOutlet weak var descriptionLabel: UILabel!
     @IBOutlet weak var loadingActivityIndicator: UIActivityIndicatorView!
     
-    @IBOutlet weak var tapGstureRecognizer: UITapGestureRecognizer!
-    
     private let assetDataManager = AssetDataManager()
     
-    var galleryItems = [GalleryItem]()
+    var catImages = [CatImage]()
     
     var index = 0
     
@@ -27,7 +25,11 @@ class GalleryAlbumViewerViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        retrieveAsset()
+        guard index < catImages.count else {
+            return
+        }
+        
+        retrieveImage()
         updateTitle()
         navigationItem.hidesBackButton = true
     }
@@ -39,21 +41,21 @@ class GalleryAlbumViewerViewController: UIViewController {
             return
         }
         
-        titleView.titleLabel.text = "\(index+1) of \(galleryItems.count)"
+        titleView.titleLabel.text = "\(index+1) of \(catImages.count)"
         
-        if index+1 == galleryItems.count {
-            titleView.subtitleLabel.text = "Tap to close album"
+        if index+1 == catImages.count {
+            titleView.subtitleLabel.text = "Tap to close"
         }
     }
     
     // MARK: - GestureRecognizer
     
     @IBAction func didTap(_ sender: Any) {
-        cancelAssertRetrieval()
+        cancelImageRetrieval()
         index += 1
         
-        if index < galleryItems.count {
-            retrieveAsset()
+        if index < catImages.count {
+            retrieveImage()
             updateTitle()
         } else {
             navigationController?.popViewController(animated: true)
@@ -69,23 +71,23 @@ class GalleryAlbumViewerViewController: UIViewController {
     
     // MARK: - Asset
     
-    func retrieveAsset() {
-        let galleryItem = galleryItems[index]
+    func retrieveImage() {
+        let catImage = catImages[index]
         prepareForReuse()
-        descriptionLabel.text = "\(galleryItem.asset.url.absoluteString)"
-        assetDataManager.loadGalleryItemAsset(galleryItem.asset) { [weak self] (result) in
+        descriptionLabel.text = "\(catImage.url.absoluteString)"
+        assetDataManager.loadImage(catImage) { [weak self] (result) in
             guard let strongSelf = self else {
                 return
             }
             
-            guard strongSelf.index <= strongSelf.galleryItems.count else {
+            guard strongSelf.index < strongSelf.catImages.count else {
                 return
             }
             
             switch result {
             case .success(let loadResult):
-                let currentGalleryItem = strongSelf.galleryItems[strongSelf.index]
-                if loadResult.asset == currentGalleryItem.asset {
+                let currentCatImage = strongSelf.catImages[strongSelf.index]
+                if loadResult.catImage == currentCatImage {
                     strongSelf.loadingActivityIndicator.stopAnimating()
                     strongSelf.assetImageView.image = loadResult.image
                 }
@@ -96,8 +98,12 @@ class GalleryAlbumViewerViewController: UIViewController {
         }
     }
     
-    func cancelAssertRetrieval() {
-        let galleryItem = galleryItems[index]
-        assetDataManager.cancelLoadingGalleryItemAsset(galleryItem.asset)
+    func cancelImageRetrieval() {
+        guard index < catImages.count else {
+            return
+        }
+        
+        let catImage = catImages[index]
+        assetDataManager.cancelLoadingImage(catImage)
     }
 }

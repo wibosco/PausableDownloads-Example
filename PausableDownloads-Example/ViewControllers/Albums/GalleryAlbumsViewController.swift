@@ -2,7 +2,7 @@
 //  GalleryAlbumsViewController.swift
 //  PausableDownloads-Example
 //
-//  Created by William Boles on 17/01/2018.
+//  Created by William Boles on 15/01/2018.
 //  Copyright © 2018 William Boles. All rights reserved.
 //
 
@@ -13,8 +13,8 @@ class GalleryAlbumsViewController: UIViewController {
     @IBOutlet weak var collectionView: UICollectionView!
     @IBOutlet weak var loadingActivityIndicatorView: UIActivityIndicatorView!
     
-    let dataManager = GalleryDataManager()
-    var galleryAlbums = [GalleryAlbum]()
+    let dataManager = CatImagesDataManager()
+    var catImages = [CatImage]()
     let fileManager = FileManager.default
     
     // MARK: - Lifecycle
@@ -22,20 +22,20 @@ class GalleryAlbumsViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        retrieveAlbums()
+        retrieveImages()
     }
     
-    // MARK: - Albums
+    // MARK: - Images
     
-    func retrieveAlbums() {
+    func retrieveImages() {
         loadingActivityIndicatorView.startAnimating()
         
-        dataManager.retrieveGallery(forSearchTerms: "cats") { (searchTerms, result) in
+        dataManager.retrieveImages { (result) in
             self.loadingActivityIndicatorView.stopAnimating()
             
             switch result {
-            case .success(let galleryAlbums):
-                self.galleryAlbums = galleryAlbums
+            case .success(let catImages):
+                self.catImages = catImages
                 self.collectionView.reloadData()
             case .failure(_):
                 //TODO: Handle error
@@ -54,7 +54,8 @@ class GalleryAlbumsViewController: UIViewController {
                     return
             }
             
-            viewController.galleryItems = galleryAlbums[indexPath.item].items
+            viewController.catImages = catImages
+            viewController.index = indexPath.item
         }
     }
     
@@ -63,23 +64,20 @@ class GalleryAlbumsViewController: UIViewController {
     @IBAction func resetButtonPressed(_ sender: Any) {
         loadingActivityIndicatorView.startAnimating()
         
-        for galleryAlbum in galleryAlbums {
-            try? fileManager.removeItem(at: galleryAlbum.thumbnailAsset.cachedLocalAssetURL())
-            for galleryItem in galleryAlbum.items {
-                try? fileManager.removeItem(at: galleryItem.asset.cachedLocalAssetURL())
-            }
+        for catImage in catImages {
+            try? fileManager.removeItem(at: catImage.cachedLocalAssetURL())
         }
         
-        galleryAlbums.removeAll()
+        catImages.removeAll()
         collectionView.reloadData()
-        retrieveAlbums()
+        retrieveImages()
     }
 }
 
 extension GalleryAlbumsViewController: UICollectionViewDataSource {
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return galleryAlbums.count
+        return catImages.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
@@ -87,9 +85,9 @@ extension GalleryAlbumsViewController: UICollectionViewDataSource {
             fatalError("Expected cell of type: \(GalleryAlbumCollectionViewCell.className)")
         }
         
-        let galleryAlbum = galleryAlbums[indexPath.row]
+        let catImage = catImages[indexPath.item]
         
-        cell.configure(galleryAlbum: galleryAlbum)
+        cell.configure(catImage: catImage)
         
         return cell
     }

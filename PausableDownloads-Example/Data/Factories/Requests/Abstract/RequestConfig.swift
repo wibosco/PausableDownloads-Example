@@ -18,7 +18,7 @@ enum HTTPRequestMethod: String {
 
 class RequestConfig {
     
-    let clientID: String
+    let apiKey: String
     let APIHost: String
     let timeInterval: TimeInterval
     let cachePolicy: NSURLRequest.CachePolicy
@@ -30,12 +30,12 @@ class RequestConfig {
     // MARK: - Init
     
     init() {
-        self.clientID = Bundle.main.object(forInfoDictionaryKey: "ClientID") as? String ?? "" // Add your API key from: https://api.imgur.com/oauth2/addclient //"REPLACE_ME" //TODO: Added your clientID here
-        self.APIHost = "https://api.imgur.com/3"
+        self.apiKey = Bundle.main.object(forInfoDictionaryKey: "CatAPIKey") as? String ?? "" // Add your API key from: https://thecatapi.com/
+        self.APIHost = "https://api.thecatapi.com/v1"
         self.timeInterval = 45
         self.cachePolicy = .useProtocolCachePolicy
         
-        if clientID.isEmpty {
+        if apiKey.isEmpty {
             os_log(.error, """
             *******************************************************************************  
             *******************************************************************************  

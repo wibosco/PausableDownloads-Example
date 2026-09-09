@@ -2,7 +2,7 @@
 //  GalleryAlbumCollectionViewCell.swift
 //  PausableDownloads-Example
 //
-//  Created by William Boles on 17/01/2018.
+//  Created by William Boles on 15/01/2018.
 //  Copyright © 2018 William Boles. All rights reserved.
 //
 
@@ -14,7 +14,7 @@ class GalleryAlbumCollectionViewCell: UICollectionViewCell {
     @IBOutlet weak var thumbnailImageView: UIImageView!
     
     private var assetDataManager = AssetDataManager()
-    private var thumbnailAsset: GalleryAsset?
+    private var catImage: CatImage?
     
     // MARK: - Reuse
     
@@ -26,14 +26,14 @@ class GalleryAlbumCollectionViewCell: UICollectionViewCell {
     
     // MARK: - Configure
     
-    func configure(galleryAlbum: GalleryAlbum) {
-        informationalLabel.text = "\(galleryAlbum.thumbnailAsset.url.absoluteString)"
-        thumbnailAsset = galleryAlbum.thumbnailAsset
+    func configure(catImage: CatImage) {
+        informationalLabel.text = "\(catImage.url.absoluteString)"
+        self.catImage = catImage
         
-        assetDataManager.loadAlbumThumbnailAsset(galleryAlbum.thumbnailAsset) { [weak self] (result) in
+        assetDataManager.loadImage(catImage) { [weak self] (result) in
             switch result {
             case .success(let loadResult):
-                if loadResult.asset == self?.thumbnailAsset {
+                if loadResult.catImage == self?.catImage {
                     self?.thumbnailImageView.image = loadResult.image
                 }
             case .failure(_):

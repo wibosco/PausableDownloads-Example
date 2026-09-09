@@ -9,8 +9,8 @@
 import Foundation
 import UIKit
 
-struct LoadAssetResult: Equatable {
-    let asset: GalleryAsset
+struct LoadImageResult: Equatable {
+    let catImage: CatImage
     let image: UIImage
 }
 
@@ -19,55 +19,45 @@ class AssetDataManager {
     private let assetDownloadSession = AssetDownloadsSession.shared
     private let fileManager = FileManager.default
     
-    // MARK: - GalleryAlbum
+    // MARK: - CatImage
     
-    func loadAlbumThumbnailAsset(_ asset: GalleryAsset, completionHandler: @escaping ((_ result: Result<LoadAssetResult, Error>) -> ())) {
-        if fileManager.fileExists(atPath: asset.cachedLocalAssetURL().path) {
-            locallyLoadAsset(asset, completionHandler: completionHandler)
+    func loadImage(_ catImage: CatImage, completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ())) {
+        if fileManager.fileExists(atPath: catImage.cachedLocalAssetURL().path) {
+            locallyLoadImage(catImage, completionHandler: completionHandler)
         } else {
-            remotelyLoadAsset(asset, completionHandler: completionHandler)
+            remotelyLoadImage(catImage, completionHandler: completionHandler)
         }
     }
     
-    // MARK: - GalleryItem
-    
-    func loadGalleryItemAsset(_ asset: GalleryAsset, completionHandler: @escaping ((_ result: Result<LoadAssetResult, Error>) -> ())) {
-        if fileManager.fileExists(atPath: asset.cachedLocalAssetURL().path) {
-            locallyLoadAsset(asset, completionHandler: completionHandler)
-        } else {
-            remotelyLoadAsset(asset, completionHandler: completionHandler)
-        }
-    }
-    
-    func cancelLoadingGalleryItemAsset(_ asset: GalleryAsset) {
-        assetDownloadSession.cancelDownload(url: asset.url)
+    func cancelLoadingImage(_ catImage: CatImage) {
+        assetDownloadSession.cancelDownload(url: catImage.url)
     }
     
     // MARK: - Asset
     
-    private func locallyLoadAsset(_ asset: GalleryAsset, completionHandler: @escaping ((_ result: Result<LoadAssetResult, Error>) -> ())) {
+    private func locallyLoadImage(_ catImage: CatImage, completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ())) {
         do {
-            let data = try Data(contentsOf: URL(fileURLWithPath: asset.cachedLocalAssetURL().path))
+            let data = try Data(contentsOf: URL(fileURLWithPath: catImage.cachedLocalAssetURL().path))
             
             guard let image = UIImage(data: data) else {
                 completionHandler(.failure(NetworkingError.invalidData(underlyingError: nil)))
                 return
             }
             
-            let loadResult = LoadAssetResult(asset: asset, image: image)
-            let dataRequestResult = Result<LoadAssetResult, Error>.success(loadResult)
+            let loadResult = LoadImageResult(catImage: catImage, image: image)
+            let dataRequestResult = Result<LoadImageResult, Error>.success(loadResult)
             
             DispatchQueue.main.async {
                 completionHandler(dataRequestResult)
             }
         } catch {
-            remotelyLoadAsset(asset, completionHandler: completionHandler)
+            remotelyLoadImage(catImage, completionHandler: completionHandler)
         }
     }
     
-    private func remotelyLoadAsset(_ asset: GalleryAsset, completionHandler: @escaping ((_ result: Result<LoadAssetResult, Error>) -> ())) {
+    private func remotelyLoadImage(_ catImage: CatImage, completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ())) {
         
-        assetDownloadSession.scheduleDownload(url: asset.url) { (result) in
+        assetDownloadSession.scheduleDownload(url: catImage.url) { (result) in
             switch result {
             case .success(let data):
                 guard let image = UIImage(data: data) else {
@@ -76,13 +66,14 @@ class AssetDataManager {
                 }
                 
                 do {
-                    try data.write(to: asset.cachedLocalAssetURL(), options: .atomic)
+                    try data.write(to: catImage.cachedLocalAssetURL(), options: .atomic)
                 } catch let error {
                     completionHandler(.failure(NetworkingError.invalidData(underlyingError: error)))
+                    return
                 }
                 
-                let loadResult = LoadAssetResult(asset: asset, image: image)
-                let dataRequestResult = Result<LoadAssetResult, Error>.success(loadResult)
+                let loadResult = LoadImageResult(catImage: catImage, image: image)
+                let dataRequestResult = Result<LoadImageResult, Error>.success(loadResult)
                 
                 DispatchQueue.main.async {
                     completionHandler(dataRequestResult)

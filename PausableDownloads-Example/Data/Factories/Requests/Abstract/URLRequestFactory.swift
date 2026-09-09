@@ -32,7 +32,7 @@ class URLRequestFactory {
         let url = URL(string: encodedStringURL!)!
     
         var request = URLRequest(url: url)
-        request.addValue("Client-ID \(config.clientID)", forHTTPHeaderField: "Authorization")
+        request.addValue(config.apiKey, forHTTPHeaderField: "x-api-key")
 
         return request
     }
