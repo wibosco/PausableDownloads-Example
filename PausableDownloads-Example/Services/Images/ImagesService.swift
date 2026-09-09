@@ -8,7 +8,11 @@
 
 import Foundation
 
-class ImagesService {
+protocol ImagesService {
+    func retrieveImages(completionHandler: @escaping ((_ result: Result<[ImageDomainModel], Error>) -> ()))
+}
+
+final class DefaultImagesService: ImagesService {
     private let repository: ImagesRepository
     private let domainModelFactory: ImagesDomainModelFactory
     

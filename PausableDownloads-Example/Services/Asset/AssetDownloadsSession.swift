@@ -16,8 +16,7 @@ protocol NotificationCenterType {
 
 extension NotificationCenter: NotificationCenterType { }
 
-class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDownloadDelegate {
-    
+class AssetDownloadsSession: NSObject {
     private var assetDownloadItems = [AssetDownloadItem]()
     private let accessQueue = DispatchQueue(label: "com.williamboles.downloadssession")
     private var session: URLSessionType!
@@ -97,9 +96,9 @@ class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDown
             assetDownloadItem.pause()
         }
     }
-    
-    // MARK: - AssetDownloadItemDelegate
-    
+}
+
+extension AssetDownloadsSession: AssetDownloadItemDelegate {
     fileprivate func assetDownloadItemCompleted(_ assetDownloadItem: AssetDownloadItem) {
         accessQueue.sync {
             os_log(.info, "Completed download of: %{public}@", assetDownloadItem.description)
@@ -109,9 +108,9 @@ class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDown
             }
         }
     }
-    
-    // MARK: - URLSessionDownloadDelegate
-    
+}
+
+extension AssetDownloadsSession: URLSessionDownloadDelegate {
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) { /*no-op*/ }
     
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didResumeAtOffset fileOffset: Int64, expectedTotalBytes: Int64) {
@@ -123,14 +122,6 @@ class AssetDownloadsSession: NSObject, AssetDownloadItemDelegate, URLSessionDown
     }
 }
 
-fileprivate enum State: String {
-    case ready
-    case downloading
-    case paused
-    case cancelled
-    case completed
-}
-
 fileprivate protocol AssetDownloadItemDelegate {
     func assetDownloadItemCompleted(_ assetDownloadItem: AssetDownloadItem)
 }
@@ -138,6 +129,13 @@ fileprivate protocol AssetDownloadItemDelegate {
 typealias DownloadCompletionHandler = ((_ result: Result<Data, Error>) -> ())
 
 fileprivate class AssetDownloadItem {
+    fileprivate enum State: String {
+        case ready
+        case downloading
+        case paused
+        case cancelled
+        case completed
+    }
     
     private let session: URLSessionType
     private var resumptionData: Data?

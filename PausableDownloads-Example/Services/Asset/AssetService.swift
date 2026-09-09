@@ -14,11 +14,17 @@ struct LoadImageResult: Equatable {
     let image: UIImage
 }
 
-class AssetService {
-    private let assetDownloadSession = AssetDownloadsSession.shared
+protocol AssetService {
+    func loadImage(_ imageDomainModel: ImageDomainModel,
+                   completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ()))
+    func cancelLoadingImage(_ imageDomainModel: ImageDomainModel)
+}
+
+final class DefaultAssetService: AssetService {
+    private let session = AssetDownloadsSession.shared
     private let fileManager = FileManager.default
     
-    // MARK: - imageDomainModel
+    // MARK: - Load
     
     func loadImage(_ imageDomainModel: ImageDomainModel,
                    completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ())) {
@@ -28,12 +34,6 @@ class AssetService {
             remotelyLoadImage(imageDomainModel, completionHandler: completionHandler)
         }
     }
-    
-    func cancelLoadingImage(_ imageDomainModel: ImageDomainModel) {
-        assetDownloadSession.cancelDownload(url: imageDomainModel.url)
-    }
-    
-    // MARK: - Asset
     
     private func locallyLoadImage(_ imageDomainModel: ImageDomainModel,
                                   completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ())) {
@@ -59,18 +59,22 @@ class AssetService {
     private func remotelyLoadImage(_ imageDomainModel: ImageDomainModel,
                                    completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ())) {
         
-        assetDownloadSession.scheduleDownload(url: imageDomainModel.url) { (result) in
+        session.scheduleDownload(url: imageDomainModel.url) { (result) in
             switch result {
             case .success(let data):
                 guard let image = UIImage(data: data) else {
-                    completionHandler(.failure(NetworkingError.invalidData(underlyingError: nil)))
+                    DispatchQueue.main.async {
+                        completionHandler(.failure(NetworkingError.invalidData(underlyingError: nil)))
+                    }
                     return
                 }
                 
                 do {
                     try data.write(to: imageDomainModel.cachedLocalAssetURL(), options: .atomic)
                 } catch let error {
-                    completionHandler(.failure(NetworkingError.invalidData(underlyingError: error)))
+                    DispatchQueue.main.async {
+                        completionHandler(.failure(NetworkingError.invalidData(underlyingError: error)))
+                    }
                     return
                 }
                 
@@ -81,8 +85,16 @@ class AssetService {
                     completionHandler(dataRequestResult)
                 }
             case .failure(let error):
-                completionHandler(.failure(error))
+                DispatchQueue.main.async {
+                    completionHandler(.failure(error))
+                }
             }
         }
+    }
+    
+    // MARK: - Cancel
+    
+    func cancelLoadingImage(_ imageDomainModel: ImageDomainModel) {
+        session.cancelDownload(url: imageDomainModel.url)
     }
 }

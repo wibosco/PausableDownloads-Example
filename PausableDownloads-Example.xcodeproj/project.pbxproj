@@ -22,14 +22,19 @@
 		437C0CB43051EC36009529DF /* ImageDTO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0CAB3051EC36009529DF /* ImageDTO.swift */; };
 		437C0CB63051EC36009529DF /* ImagesRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0CAC3051EC36009529DF /* ImagesRepository.swift */; };
 		437C0D3B3051ED69009529DF /* ImagesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D3A3051ED69009529DF /* ImagesService.swift */; };
-		437C0D4B3051ED90009529DF /* ImagesDomainModelFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D4A3051ED90009529DF /* ImagesDomainModelFactory.swift */; };
 		437C0D3D3051ED80009529DF /* ImageDomainModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D3C3051ED80009529DF /* ImageDomainModel.swift */; };
 		437C0D3F3051EDCC009529DF /* AssetService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D3E3051EDCC009529DF /* AssetService.swift */; };
+		437C0D413051F9F3009529DF /* StubImagesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D403051F9F3009529DF /* StubImagesService.swift */; };
+		437C0D433051FA65009529DF /* StubAssetService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D423051FA65009529DF /* StubAssetService.swift */; };
+		437C0D453051FB2E009529DF /* ImageViewerViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D443051FB2E009529DF /* ImageViewerViewModelTests.swift */; };
+		437C0D4B3051ED90009529DF /* ImagesDomainModelFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D4A3051ED90009529DF /* ImagesDomainModelFactory.swift */; };
+		437C0D5B3051EDA0009529DF /* ImageViewerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D5A3051EDA0009529DF /* ImageViewerViewModel.swift */; };
 		4399D3903050B4DB009D2CEB /* StubURLSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4399D3893050B4DB009D2CEB /* StubURLSession.swift */; };
 		4399D3913050B4DB009D2CEB /* StubURLSessionDownloadTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4399D38A3050B4DB009D2CEB /* StubURLSessionDownloadTask.swift */; };
 		4399D3923050B4DB009D2CEB /* StubURLSessionFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4399D38B3050B4DB009D2CEB /* StubURLSessionFactory.swift */; };
 		4399D3933050B4DB009D2CEB /* TestError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4399D38C3050B4DB009D2CEB /* TestError.swift */; };
 		4399D3943050B4DB009D2CEB /* StubNotificationCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4399D3883050B4DB009D2CEB /* StubNotificationCenter.swift */; };
+		437C0D6B3051EDB0009529DF /* StubImageViewerViewModelDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D6A3051EDB0009529DF /* StubImageViewerViewModelDelegate.swift */; };
 		4399D3953050B4DB009D2CEB /* AssetDownloadsSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4399D38E3050B4DB009D2CEB /* AssetDownloadsSessionTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -63,10 +68,15 @@
 		437C0CAC3051EC36009529DF /* ImagesRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagesRepository.swift; sourceTree = "<group>"; };
 		437C0CAF3051EC36009529DF /* AssetDownloadsSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetDownloadsSession.swift; sourceTree = "<group>"; };
 		437C0D3A3051ED69009529DF /* ImagesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagesService.swift; sourceTree = "<group>"; };
-		437C0D4A3051ED90009529DF /* ImagesDomainModelFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagesDomainModelFactory.swift; sourceTree = "<group>"; };
 		437C0D3C3051ED80009529DF /* ImageDomainModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageDomainModel.swift; sourceTree = "<group>"; };
 		437C0D3E3051EDCC009529DF /* AssetService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetService.swift; sourceTree = "<group>"; };
+		437C0D403051F9F3009529DF /* StubImagesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubImagesService.swift; sourceTree = "<group>"; };
+		437C0D423051FA65009529DF /* StubAssetService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubAssetService.swift; sourceTree = "<group>"; };
+		437C0D443051FB2E009529DF /* ImageViewerViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewerViewModelTests.swift; sourceTree = "<group>"; };
+		437C0D4A3051ED90009529DF /* ImagesDomainModelFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagesDomainModelFactory.swift; sourceTree = "<group>"; };
+		437C0D5A3051EDA0009529DF /* ImageViewerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewerViewModel.swift; sourceTree = "<group>"; };
 		4399D3883050B4DB009D2CEB /* StubNotificationCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubNotificationCenter.swift; sourceTree = "<group>"; };
+		437C0D6A3051EDB0009529DF /* StubImageViewerViewModelDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubImageViewerViewModelDelegate.swift; sourceTree = "<group>"; };
 		4399D3893050B4DB009D2CEB /* StubURLSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubURLSession.swift; sourceTree = "<group>"; };
 		4399D38A3050B4DB009D2CEB /* StubURLSessionDownloadTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubURLSessionDownloadTask.swift; sourceTree = "<group>"; };
 		4399D38B3050B4DB009D2CEB /* StubURLSessionFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubURLSessionFactory.swift; sourceTree = "<group>"; };
@@ -144,6 +154,7 @@
 			isa = PBXGroup;
 			children = (
 				3D63CC3E204B554700797A82 /* ImageViewerViewController.swift */,
+				437C0D5A3051EDA0009529DF /* ImageViewerViewModel.swift */,
 			);
 			path = ImageViewer;
 			sourceTree = "<group>";
@@ -256,10 +267,13 @@
 			isa = PBXGroup;
 			children = (
 				4399D3883050B4DB009D2CEB /* StubNotificationCenter.swift */,
+				437C0D6A3051EDB0009529DF /* StubImageViewerViewModelDelegate.swift */,
 				4399D3893050B4DB009D2CEB /* StubURLSession.swift */,
 				4399D38A3050B4DB009D2CEB /* StubURLSessionDownloadTask.swift */,
 				4399D38B3050B4DB009D2CEB /* StubURLSessionFactory.swift */,
 				4399D38C3050B4DB009D2CEB /* TestError.swift */,
+				437C0D403051F9F3009529DF /* StubImagesService.swift */,
+				437C0D423051FA65009529DF /* StubAssetService.swift */,
 			);
 			path = Doubles;
 			sourceTree = "<group>";
@@ -268,6 +282,7 @@
 			isa = PBXGroup;
 			children = (
 				4399D38E3050B4DB009D2CEB /* AssetDownloadsSessionTests.swift */,
+				437C0D443051FB2E009529DF /* ImageViewerViewModelTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -392,6 +407,7 @@
 				437C0D3D3051ED80009529DF /* ImageDomainModel.swift in Sources */,
 				3D63CC5F204B554700797A82 /* AppDelegate.swift in Sources */,
 				3D63CC5E204B554700797A82 /* ImageViewerViewController.swift in Sources */,
+				437C0D5B3051EDA0009529DF /* ImageViewerViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -399,11 +415,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				437C0D433051FA65009529DF /* StubAssetService.swift in Sources */,
 				4399D3903050B4DB009D2CEB /* StubURLSession.swift in Sources */,
 				4399D3913050B4DB009D2CEB /* StubURLSessionDownloadTask.swift in Sources */,
+				437C0D413051F9F3009529DF /* StubImagesService.swift in Sources */,
 				4399D3923050B4DB009D2CEB /* StubURLSessionFactory.swift in Sources */,
 				4399D3933050B4DB009D2CEB /* TestError.swift in Sources */,
 				4399D3943050B4DB009D2CEB /* StubNotificationCenter.swift in Sources */,
+				437C0D6B3051EDB0009529DF /* StubImageViewerViewModelDelegate.swift in Sources */,
+				437C0D453051FB2E009529DF /* ImageViewerViewModelTests.swift in Sources */,
 				4399D3953050B4DB009D2CEB /* AssetDownloadsSessionTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

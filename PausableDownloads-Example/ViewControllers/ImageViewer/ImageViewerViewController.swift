@@ -13,91 +13,46 @@ class ImageViewerViewController: UIViewController {
     @IBOutlet weak var descriptionLabel: UILabel!
     @IBOutlet weak var loadingActivityIndicator: UIActivityIndicatorView!
     
-    private let assetService = AssetService()
-    private let imagesService = ImagesService()
-    
-    private var images = [ImageDomainModel]()
-    private var index = 0
+    private let viewModel = ImageViewerViewModel()
     
     // MARK: - ViewLifecycle
     
     override func viewDidLoad() {
         super.viewDidLoad()
-    
-        retrieveImages()
+        
+        viewModel.delegate = self
+        viewModel.load()
     }
     
     // MARK: - GestureRecognizer
     
     @IBAction func didTap(_ sender: Any) {
-        cancelImageRetrieval()
-        index += 1
-        retrieveImage()
+        viewModel.advance()
     }
+}
+
+extension ImageViewerViewController: ImageViewerViewModelDelegate {
     
-    // MARK: - Reuse
+    // MARK: - ImageViewerViewModelDelegate
     
-    func prepareForReuse() {
-        loadingActivityIndicator.startAnimating()
-        assetImageView.image = nil
-    }
-    
-    // MARK: - Images
-    
-    func retrieveImages() {
-        loadingActivityIndicator.startAnimating()
-        
-        imagesService.retrieveImages { (result) in
-            self.loadingActivityIndicator.stopAnimating()
-            
-            switch result {
-            case .success(let images):
-                self.images = images
-                self.retrieveImage()
-            case .failure(_):
-                //TODO: Handle error
-                break
-            }
+    func viewModel(_ viewModel: ImageViewerViewModel,
+                   didChangeTo state: ImageViewerViewModel.State) {
+        switch state {
+        case .loadingImages:
+            loadingActivityIndicator.startAnimating()
+            assetImageView.image = nil
+        case .loadingAsset(let description):
+            loadingActivityIndicator.startAnimating()
+            assetImageView.image = nil
+            descriptionLabel.text = description
+        case .loadedAsset(let image, let description):
+            loadingActivityIndicator.stopAnimating()
+            assetImageView.image = image
+            descriptionLabel.text = description
+        case .failed:
+            loadingActivityIndicator.stopAnimating()
+            //TODO: Handle error
+            break
         }
-    }
-    
-    func retrieveImage() {
-        guard index < images.count else { return }
-        
-        let image = images[index]
-        
-        prepareForReuse()
-        descriptionLabel.text = "\(image.url.absoluteString)"
-        
-        assetService.loadImage(image) { [weak self] (result) in
-            guard let self = self else {
-                return
-            }
-            
-            guard self.index < self.images.count else {
-                return
-            }
-            
-            switch result {
-            case .success(let loadResult):
-                let currentImage = self.images[self.index]
-                if loadResult.imageDomainModel == currentImage {
-                    self.loadingActivityIndicator.stopAnimating()
-                    self.assetImageView.image = loadResult.image
-                }
-            case .failure(_):
-                //TODO: Handle
-                break
-            }
-        }
-    }
-    
-    func cancelImageRetrieval() {
-        guard index < images.count else {
-            return
-        }
-        
-        let image = images[index]
-        assetService.cancelLoadingImage(image)
     }
 }
