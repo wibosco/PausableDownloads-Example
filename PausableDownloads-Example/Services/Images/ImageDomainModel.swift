@@ -1,26 +1,18 @@
 //
-//  CatImage.swift
+//  ImageDomainModel.swift
 //  PausableDownloads-Example
 //
-//  Created by William Boles on 17/01/2018.
-//  Copyright © 2018 William Boles. All rights reserved.
+//  Created by William Boles on 09/09/2026.
+//  Copyright © 2026 William Boles. All rights reserved.
 //
 
 import Foundation
 
-struct CatImage: Decodable, Equatable {
-    
+struct ImageDomainModel: Equatable {
     let identifier: String
     let url: URL
     let width: Int
     let height: Int
-    
-    private enum CodingKeys: String, CodingKey {
-        case identifier = "id"
-        case url
-        case width
-        case height
-    }
     
     // MARK: - Cache
     

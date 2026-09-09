@@ -1,5 +1,5 @@
 //
-//  CatImagesDataManager.swift
+//  ImagesRepository.swift
 //  PausableDownloads-Example
 //
 //  Created by William Boles on 15/01/2018.
@@ -8,10 +8,9 @@
 
 import Foundation
 
-class CatImagesDataManager {
-    
-    let urlRequestFactory: CatImagesURLRequestFactory
-    let session: URLSession
+class ImagesRepository {
+    private let urlRequestFactory: CatImagesURLRequestFactory
+    private let session: URLSession
     
     // MARK: - Init
     
@@ -23,7 +22,7 @@ class CatImagesDataManager {
     
     // MARK: - List
     
-    func retrieveImages(completionHandler: @escaping ((_ result: Result<[CatImage], Error>) -> ())) {
+    func retrieveImages(completionHandler: @escaping ((_ result: Result<[ImageDTO], Error>) -> ())) {
         let request = urlRequestFactory.requestToRetrieveImages()
         
         let task = session.dataTask(with: request) { (data: Data?, response: URLResponse?, error: Error?) in
@@ -45,10 +44,10 @@ class CatImagesDataManager {
             }
             
             do {
-                let catImages = try JSONDecoder().decode([CatImage].self, from: data)
+                let dtos = try JSONDecoder().decode([ImageDTO].self, from: data)
                 
                 DispatchQueue.main.async {
-                    completionHandler(Result.success(catImages))
+                    completionHandler(Result.success(dtos))
                 }
             } catch let error {
                 DispatchQueue.main.async {
