@@ -15,14 +15,16 @@ class GalleryDataManager {
     
     // MARK: - Init
     
-    init(session: URLSession = URLSession.shared, urlRequestFactory: GalleryURLRequestFactory = GalleryURLRequestFactory()) {
+    init(session: URLSession = URLSession.shared,
+         urlRequestFactory: GalleryURLRequestFactory = GalleryURLRequestFactory()) {
         self.session = session
         self.urlRequestFactory = urlRequestFactory
     }
     
     // MARK: - List
     
-    func retrieveGallery(forSearchTerms searchTerms: String, completionHandler: @escaping ((_ searchTerms: String, _ result: Result<[GalleryAlbum], Error>) -> ())) {
+    func retrieveGallery(forSearchTerms searchTerms: String,
+                         completionHandler: @escaping ((_ searchTerms: String, _ result: Result<[GalleryAlbum], Error>) -> ())) {
         let request = urlRequestFactory.requestToRetrieveGallerySearchResults(for: searchTerms)
         
         let task = session.dataTask(with: request) { (data: Data?, response: URLResponse?, error: Error?) in

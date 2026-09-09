@@ -30,13 +30,21 @@ class RequestConfig {
     // MARK: - Init
     
     init() {
-        self.clientID = "REPLACE_ME" //TODO: Added your clientID here
+        self.clientID = Bundle.main.object(forInfoDictionaryKey: "ClientID") as? String ?? "" // Add your API key from: https://api.imgur.com/oauth2/addclient //"REPLACE_ME" //TODO: Added your clientID here
         self.APIHost = "https://api.imgur.com/3"
         self.timeInterval = 45
         self.cachePolicy = .useProtocolCachePolicy
         
-        if clientID == "REPLACE_ME" {
-            os_log(.info, "You need to provide a clientID hash, you get this from: https://api.imgur.com/oauth2/addclient")
+        if clientID.isEmpty {
+            os_log(.error, """
+            *******************************************************************************  
+            *******************************************************************************  
+            *******************************************************************************  
+            ******************************* MISSING API KEY *******************************
+            *******************************************************************************  
+            ******************************************************************************* 
+            ******************************************************************************* 
+            """)
         }
     }
 }

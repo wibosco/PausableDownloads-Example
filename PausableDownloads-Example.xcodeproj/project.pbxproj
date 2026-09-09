@@ -82,6 +82,7 @@
 		4399D38B3050B4DB009D2CEB /* StubURLSessionFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubURLSessionFactory.swift; sourceTree = "<group>"; };
 		4399D38C3050B4DB009D2CEB /* TestError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestError.swift; sourceTree = "<group>"; };
 		4399D38E3050B4DB009D2CEB /* AssetDownloadsSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetDownloadsSessionTests.swift; sourceTree = "<group>"; };
+		43DF70D53051B477004E9EEA /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -306,6 +307,7 @@
 		3DE07FC01FFF0F31003C95C0 = {
 			isa = PBXGroup;
 			children = (
+				43DF70D53051B477004E9EEA /* Secrets.xcconfig */,
 				3D63CC2B204B554700797A82 /* PausableDownloads-Example */,
 				3D63CC6E204B555300797A82 /* PausableDownloads-ExampleTests */,
 				3DE07FCA1FFF0F31003C95C0 /* Products */,
