@@ -12,15 +12,16 @@ import Foundation
 
 final class StubAssetService: AssetService {
     enum Event {
-        case loadImage(ImageDomainModel, (Result<PausableDownloads_Example.LoadImageResult, any Error>) -> ())
+        case loadImage(ImageDomainModel, DispatchQueue, (Result<PausableDownloads_Example.LoadImageResult, any Error>) -> ())
         case cancelLoadingImage(ImageDomainModel)
     }
     
     private(set) var events = [Event]()
     
     func loadImage(_ imageDomainModel: ImageDomainModel,
+                   callbackQueue: DispatchQueue,
                    completionHandler: @escaping (Result<PausableDownloads_Example.LoadImageResult, any Error>) -> ()) {
-        events.append(.loadImage(imageDomainModel, completionHandler))
+        events.append(.loadImage(imageDomainModel, callbackQueue, completionHandler))
     }
     
     func cancelLoadingImage(_ imageDomainModel: ImageDomainModel) {

@@ -9,7 +9,8 @@
 import Foundation
 
 protocol ImagesService {
-    func retrieveImages(completionHandler: @escaping ((_ result: Result<[ImageDomainModel], Error>) -> ()))
+    func retrieveImages(callbackQueue: DispatchQueue,
+                        completionHandler: @escaping ((_ result: Result<[ImageDomainModel], Error>) -> ()))
 }
 
 final class DefaultImagesService: ImagesService {
@@ -26,14 +27,20 @@ final class DefaultImagesService: ImagesService {
     
     // MARK: - Retrieval
     
-    func retrieveImages(completionHandler: @escaping ((_ result: Result<[ImageDomainModel], Error>) -> ())) {
+    func retrieveImages(callbackQueue: DispatchQueue,
+                        completionHandler: @escaping ((_ result: Result<[ImageDomainModel], Error>) -> ())) {
         repository.retrieveImages { [domainModelFactory] (result) in
             switch result {
             case .success(let dtos):
                 let images = dtos.map { domainModelFactory.buildImage(from: $0) }
-                completionHandler(.success(images))
+                
+                callbackQueue.async {
+                    completionHandler(.success(images))
+                }
             case .failure(let error):
-                completionHandler(.failure(error))
+                callbackQueue.async {
+                    completionHandler(.failure(error))
+                }
             }
         }
     }

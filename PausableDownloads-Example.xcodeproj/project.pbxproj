@@ -27,14 +27,15 @@
 		437C0D413051F9F3009529DF /* StubImagesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D403051F9F3009529DF /* StubImagesService.swift */; };
 		437C0D433051FA65009529DF /* StubAssetService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D423051FA65009529DF /* StubAssetService.swift */; };
 		437C0D453051FB2E009529DF /* ImageViewerViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D443051FB2E009529DF /* ImageViewerViewModelTests.swift */; };
+		437C0D4830520236009529DF /* ImageDomainModel+TestData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D4730520236009529DF /* ImageDomainModel+TestData.swift */; };
 		437C0D4B3051ED90009529DF /* ImagesDomainModelFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D4A3051ED90009529DF /* ImagesDomainModelFactory.swift */; };
 		437C0D5B3051EDA0009529DF /* ImageViewerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D5A3051EDA0009529DF /* ImageViewerViewModel.swift */; };
+		437C0D6B3051EDB0009529DF /* StubImageViewerViewModelDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D6A3051EDB0009529DF /* StubImageViewerViewModelDelegate.swift */; };
 		4399D3903050B4DB009D2CEB /* StubURLSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4399D3893050B4DB009D2CEB /* StubURLSession.swift */; };
 		4399D3913050B4DB009D2CEB /* StubURLSessionDownloadTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4399D38A3050B4DB009D2CEB /* StubURLSessionDownloadTask.swift */; };
 		4399D3923050B4DB009D2CEB /* StubURLSessionFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4399D38B3050B4DB009D2CEB /* StubURLSessionFactory.swift */; };
 		4399D3933050B4DB009D2CEB /* TestError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4399D38C3050B4DB009D2CEB /* TestError.swift */; };
 		4399D3943050B4DB009D2CEB /* StubNotificationCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4399D3883050B4DB009D2CEB /* StubNotificationCenter.swift */; };
-		437C0D6B3051EDB0009529DF /* StubImageViewerViewModelDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D6A3051EDB0009529DF /* StubImageViewerViewModelDelegate.swift */; };
 		4399D3953050B4DB009D2CEB /* AssetDownloadsSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4399D38E3050B4DB009D2CEB /* AssetDownloadsSessionTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -73,10 +74,11 @@
 		437C0D403051F9F3009529DF /* StubImagesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubImagesService.swift; sourceTree = "<group>"; };
 		437C0D423051FA65009529DF /* StubAssetService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubAssetService.swift; sourceTree = "<group>"; };
 		437C0D443051FB2E009529DF /* ImageViewerViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewerViewModelTests.swift; sourceTree = "<group>"; };
+		437C0D4730520236009529DF /* ImageDomainModel+TestData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ImageDomainModel+TestData.swift"; sourceTree = "<group>"; };
 		437C0D4A3051ED90009529DF /* ImagesDomainModelFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagesDomainModelFactory.swift; sourceTree = "<group>"; };
 		437C0D5A3051EDA0009529DF /* ImageViewerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewerViewModel.swift; sourceTree = "<group>"; };
-		4399D3883050B4DB009D2CEB /* StubNotificationCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubNotificationCenter.swift; sourceTree = "<group>"; };
 		437C0D6A3051EDB0009529DF /* StubImageViewerViewModelDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubImageViewerViewModelDelegate.swift; sourceTree = "<group>"; };
+		4399D3883050B4DB009D2CEB /* StubNotificationCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubNotificationCenter.swift; sourceTree = "<group>"; };
 		4399D3893050B4DB009D2CEB /* StubURLSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubURLSession.swift; sourceTree = "<group>"; };
 		4399D38A3050B4DB009D2CEB /* StubURLSessionDownloadTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubURLSessionDownloadTask.swift; sourceTree = "<group>"; };
 		4399D38B3050B4DB009D2CEB /* StubURLSessionFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubURLSessionFactory.swift; sourceTree = "<group>"; };
@@ -171,6 +173,7 @@
 		3D63CC6E204B555300797A82 /* PausableDownloads-ExampleTests */ = {
 			isa = PBXGroup;
 			children = (
+				437C0D463052022A009529DF /* TestData */,
 				4399D38D3050B4DB009D2CEB /* Doubles */,
 				4399D38F3050B4DB009D2CEB /* Tests */,
 				3D2AF9E923BB5D4B00A6D999 /* Resources */,
@@ -261,6 +264,14 @@
 				437C0D4A3051ED90009529DF /* ImagesDomainModelFactory.swift */,
 			);
 			path = Images;
+			sourceTree = "<group>";
+		};
+		437C0D463052022A009529DF /* TestData */ = {
+			isa = PBXGroup;
+			children = (
+				437C0D4730520236009529DF /* ImageDomainModel+TestData.swift */,
+			);
+			path = TestData;
 			sourceTree = "<group>";
 		};
 		4399D38D3050B4DB009D2CEB /* Doubles */ = {
@@ -418,6 +429,7 @@
 				437C0D433051FA65009529DF /* StubAssetService.swift in Sources */,
 				4399D3903050B4DB009D2CEB /* StubURLSession.swift in Sources */,
 				4399D3913050B4DB009D2CEB /* StubURLSessionDownloadTask.swift in Sources */,
+				437C0D4830520236009529DF /* ImageDomainModel+TestData.swift in Sources */,
 				437C0D413051F9F3009529DF /* StubImagesService.swift in Sources */,
 				4399D3923050B4DB009D2CEB /* StubURLSessionFactory.swift in Sources */,
 				4399D3933050B4DB009D2CEB /* TestError.swift in Sources */,

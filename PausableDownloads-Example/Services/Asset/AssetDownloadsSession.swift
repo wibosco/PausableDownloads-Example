@@ -11,12 +11,17 @@ import os
 
 protocol NotificationCenterType {
     @discardableResult
-    func addObserver(forName name: NSNotification.Name?, object obj: Any?, queue: OperationQueue?, using block: @escaping (Notification) -> Void) -> NSObjectProtocol
+    func addObserver(forName name: NSNotification.Name?,
+                     object obj: Any?,
+                     queue: OperationQueue?,
+                     using block: @escaping (Notification) -> Void) -> NSObjectProtocol
 }
 
 extension NotificationCenter: NotificationCenterType { }
 
-class AssetDownloadsSession: NSObject {
+typealias DownloadCompletionHandler = ((_ result: Result<Data, Error>) -> ())
+
+final class AssetDownloadsSession: NSObject {
     private var assetDownloadItems = [AssetDownloadItem]()
     private let accessQueue = DispatchQueue(label: "com.williamboles.downloadssession")
     private var session: URLSessionType!
@@ -60,10 +65,11 @@ class AssetDownloadsSession: NSObject {
     
     // MARK: - Schedule
     
-    func scheduleDownload(url: URL, completionHandler: @escaping DownloadCompletionHandler) {
+    func scheduleDownload(url: URL,
+                          completionHandler: @escaping DownloadCompletionHandler) {
         accessQueue.sync {
             if let assetDownloadItem = assetDownloadItems.first(where: { $0.url == url && $0.isCoalescable }) {
-                os_log(.info, "Found existing %{public}@ download so coalescing them for: %{public}@", assetDownloadItem.state.rawValue, assetDownloadItem.description)
+                os_log(.info, "Found existing %{public}@ download so coalescing them for: %{public}@", assetDownloadItem.stateDescription, assetDownloadItem.description)
                 
                 assetDownloadItem.coalesceDownloadCompletionHandler(completionHandler)
                 
@@ -111,25 +117,29 @@ extension AssetDownloadsSession: AssetDownloadItemDelegate {
 }
 
 extension AssetDownloadsSession: URLSessionDownloadDelegate {
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) { /*no-op*/ }
+    func urlSession(_ session: URLSession,
+                    downloadTask: URLSessionDownloadTask,
+                    didFinishDownloadingTo location: URL) { /*no-op*/ }
     
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didResumeAtOffset fileOffset: Int64, expectedTotalBytes: Int64) {
+    func urlSession(_ session: URLSession,
+                    downloadTask: URLSessionDownloadTask,
+                    didResumeAtOffset fileOffset: Int64,
+                    expectedTotalBytes: Int64) {
         guard let url = downloadTask.currentRequest?.url else {
             return
         }
+        
         let resumptionPercentage = (Double(fileOffset)/Double(expectedTotalBytes)) * 100
         os_log(.info, "Resuming download: %{public}@ from: %{public}.02f%%", url.absoluteString, resumptionPercentage)
     }
 }
 
-fileprivate protocol AssetDownloadItemDelegate {
+private protocol AssetDownloadItemDelegate {
     func assetDownloadItemCompleted(_ assetDownloadItem: AssetDownloadItem)
 }
 
-typealias DownloadCompletionHandler = ((_ result: Result<Data, Error>) -> ())
-
-fileprivate class AssetDownloadItem {
-    fileprivate enum State: String {
+private class AssetDownloadItem {
+    private enum State: String {
         case ready
         case downloading
         case paused
@@ -145,10 +155,14 @@ fileprivate class AssetDownloadItem {
     var delegate: AssetDownloadItemDelegate?
     var downloadCompletionHandler: DownloadCompletionHandler?
     let url: URL
-    private(set) var state: State = .ready
+    private var state: State = .ready
     
     var description: String {
         return url.absoluteString
+    }
+    
+    var stateDescription: String {
+        return state.rawValue
     }
     
     var isCoalescable: Bool {

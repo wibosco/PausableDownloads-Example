@@ -13,7 +13,7 @@ protocol ImageViewerViewModelDelegate: AnyObject {
                    didChangeTo state: ImageViewerViewModel.State)
 }
 
-class ImageViewerViewModel {
+final class ImageViewerViewModel {
     enum State: Equatable {
         case loadingImages
         case loadingAsset(description: String)
@@ -54,7 +54,7 @@ class ImageViewerViewModel {
     func load() {
         transition(to: .loadingImages)
         
-        imagesService.retrieveImages { [weak self] (result) in
+        imagesService.retrieveImages(callbackQueue: .main) { [weak self] (result) in
             guard let self = self else {
                 return
             }
@@ -86,7 +86,7 @@ class ImageViewerViewModel {
         
         transition(to: .loadingAsset(description: image.url.absoluteString))
         
-        assetService.loadImage(image) { [weak self] (result) in
+        assetService.loadImage(image, callbackQueue: .main) { [weak self] (result) in
             guard let self = self else {
                 return
             }

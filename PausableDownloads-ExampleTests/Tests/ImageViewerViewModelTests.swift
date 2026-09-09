@@ -59,19 +59,21 @@ final class ImageViewerViewModelTests: XCTestCase {
         
         sut.load()
         
-        guard case let .retrieveImages(completionHandler) = imagesService.events.first else {
+        guard case let .retrieveImages(_, completionHandler) = imagesService.events.first else {
             XCTFail("Unexpected event")
             return
         }
         
-        let imageA = createImage(identifier: "a")
-        let imageB = createImage(identifier: "b")
+        let imageA = ImageDomainModel.testData(identifier: "a",
+                                               url: URL(string: "http://test.com/a.jpg")!)
+        let imageB = ImageDomainModel.testData(identifier: "b",
+                                               url: URL(string: "http://test.com/b.jpg")!)
         
         completionHandler(.success([imageA, imageB]))
         
         XCTAssertEqual(assetService.events.count, 1)
         
-        guard case let .loadImage(loadedImage, _) = assetService.events.first else {
+        guard case let .loadImage(loadedImage, _, _) = assetService.events.first else {
             XCTFail("Unexpected event")
             return
         }
@@ -89,7 +91,7 @@ final class ImageViewerViewModelTests: XCTestCase {
         
         sut.load()
         
-        guard case let .retrieveImages(completionHandler) = imagesService.events.first else {
+        guard case let .retrieveImages(_, completionHandler) = imagesService.events.first else {
             XCTFail("Unexpected event")
             return
         }
@@ -109,7 +111,7 @@ final class ImageViewerViewModelTests: XCTestCase {
         
         sut.load()
         
-        guard case let .retrieveImages(completionHandler) = imagesService.events.first else {
+        guard case let .retrieveImages(_, completionHandler) = imagesService.events.first else {
             XCTFail("Unexpected event")
             return
         }
@@ -129,11 +131,19 @@ final class ImageViewerViewModelTests: XCTestCase {
         let sut = createSUT(imagesService: imagesService,
                             assetService: assetService)
         
-        let imageA = createImage(identifier: "a")
+        let imageA = ImageDomainModel.testData(identifier: "a",
+                                               url: URL(string: "http://test.com/a.jpg")!)
         
-        loadImages([imageA], into: sut, using: imagesService)
+        sut.load()
         
-        guard case let .loadImage(_, completionHandler) = assetService.events.first else {
+        guard case let .retrieveImages(_, imagesCompletionHandler) = imagesService.events.first else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        imagesCompletionHandler(.success([imageA]))
+        
+        guard case let .loadImage(_, _, completionHandler) = assetService.events.first else {
             XCTFail("Unexpected event")
             return
         }
@@ -151,9 +161,19 @@ final class ImageViewerViewModelTests: XCTestCase {
         let sut = createSUT(imagesService: imagesService,
                             assetService: assetService)
         
-        loadImages([createImage(identifier: "a")], into: sut, using: imagesService)
+        let imageA = ImageDomainModel.testData(identifier: "a",
+                                               url: URL(string: "http://test.com/a.jpg")!)
         
-        guard case let .loadImage(_, completionHandler) = assetService.events.first else {
+        sut.load()
+        
+        guard case let .retrieveImages(_, imagesCompletionHandler) = imagesService.events.first else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        imagesCompletionHandler(.success([imageA]))
+        
+        guard case let .loadImage(_, _, completionHandler) = assetService.events.first else {
             XCTFail("Unexpected event")
             return
         }
@@ -172,12 +192,21 @@ final class ImageViewerViewModelTests: XCTestCase {
                             assetService: assetService)
         sut.delegate = delegate
         
-        let imageA = createImage(identifier: "a")
-        let imageB = createImage(identifier: "b")
+        let imageA = ImageDomainModel.testData(identifier: "a",
+                                               url: URL(string: "http://test.com/a.jpg")!)
+        let imageB = ImageDomainModel.testData(identifier: "b",
+                                               url: URL(string: "http://test.com/b.jpg")!)
         
-        loadImages([imageA, imageB], into: sut, using: imagesService)
+        sut.load()
         
-        guard case let .loadImage(_, staleCompletionHandler) = assetService.events.first else {
+        guard case let .retrieveImages(_, imagesCompletionHandler) = imagesService.events.first else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        imagesCompletionHandler(.success([imageA, imageB]))
+        
+        guard case let .loadImage(_, _, staleCompletionHandler) = assetService.events.first else {
             XCTFail("Unexpected event")
             return
         }
@@ -201,10 +230,19 @@ final class ImageViewerViewModelTests: XCTestCase {
         let sut = createSUT(imagesService: imagesService,
                             assetService: assetService)
         
-        let imageA = createImage(identifier: "a")
-        let imageB = createImage(identifier: "b")
+        let imageA = ImageDomainModel.testData(identifier: "a",
+                                               url: URL(string: "http://test.com/a.jpg")!)
+        let imageB = ImageDomainModel.testData(identifier: "b",
+                                               url: URL(string: "http://test.com/b.jpg")!)
         
-        loadImages([imageA, imageB], into: sut, using: imagesService)
+        sut.load()
+        
+        guard case let .retrieveImages(_, imagesCompletionHandler) = imagesService.events.first else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        imagesCompletionHandler(.success([imageA, imageB]))
         
         sut.advance()
         
@@ -225,14 +263,23 @@ final class ImageViewerViewModelTests: XCTestCase {
         let sut = createSUT(imagesService: imagesService,
                             assetService: assetService)
         
-        let imageA = createImage(identifier: "a")
-        let imageB = createImage(identifier: "b")
+        let imageA = ImageDomainModel.testData(identifier: "a",
+                                               url: URL(string: "http://test.com/a.jpg")!)
+        let imageB = ImageDomainModel.testData(identifier: "b",
+                                               url: URL(string: "http://test.com/b.jpg")!)
         
-        loadImages([imageA, imageB], into: sut, using: imagesService)
+        sut.load()
+        
+        guard case let .retrieveImages(_, imagesCompletionHandler) = imagesService.events.first else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        imagesCompletionHandler(.success([imageA, imageB]))
         
         sut.advance()
         
-        guard case let .loadImage(loadedImage, _) = assetService.events.last else {
+        guard case let .loadImage(loadedImage, _, _) = assetService.events.last else {
             XCTFail("Unexpected event")
             return
         }
@@ -248,7 +295,17 @@ final class ImageViewerViewModelTests: XCTestCase {
         let sut = createSUT(imagesService: imagesService,
                             assetService: assetService)
         
-        loadImages([createImage(identifier: "a")], into: sut, using: imagesService)
+        let imageA = ImageDomainModel.testData(identifier: "a",
+                                               url: URL(string: "http://test.com/a.jpg")!)
+        
+        sut.load()
+        
+        guard case let .retrieveImages(_, imagesCompletionHandler) = imagesService.events.first else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        imagesCompletionHandler(.success([imageA]))
         
         let eventCountBeforeAdvance = assetService.events.count
         
@@ -271,9 +328,17 @@ final class ImageViewerViewModelTests: XCTestCase {
                             assetService: assetService)
         sut.delegate = delegate
         
-        let imageA = createImage(identifier: "a")
+        let imageA = ImageDomainModel.testData(identifier: "a",
+                                               url: URL(string: "http://test.com/a.jpg")!)
         
-        loadImages([imageA], into: sut, using: imagesService)
+        sut.load()
+        
+        guard case let .retrieveImages(_, imagesCompletionHandler) = imagesService.events.first else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        imagesCompletionHandler(.success([imageA]))
         
         let eventCountBeforeAdvance = delegate.events.count
         
@@ -281,6 +346,48 @@ final class ImageViewerViewModelTests: XCTestCase {
         
         XCTAssertEqual(delegate.events.count, eventCountBeforeAdvance)
         XCTAssertEqual(sut.state, .loadingAsset(description: imageA.url.absoluteString))
+    }
+    
+    // MARK: Callback queue
+
+    func test_givenViewModel_whenLoadIsCalled_thenImagesAreRequestedOnTheMainQueue() {
+        let imagesService = StubImagesService()
+        
+        let sut = createSUT(imagesService: imagesService)
+        
+        sut.load()
+        
+        guard case let .retrieveImages(callbackQueue, _) = imagesService.events.first else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        XCTAssertTrue(callbackQueue === DispatchQueue.main)
+    }
+    
+    func test_givenRetrievedImages_whenAnAssetIsLoaded_thenItIsRequestedOnTheMainQueue() {
+        let imagesService = StubImagesService()
+        let assetService = StubAssetService()
+        
+        let sut = createSUT(imagesService: imagesService,
+                            assetService: assetService)
+        
+        sut.load()
+        
+        guard case let .retrieveImages(_, imagesCompletionHandler) = imagesService.events.first else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        imagesCompletionHandler(.success([ImageDomainModel.testData(identifier: "a",
+                                                                    url: URL(string: "http://test.com/a.jpg")!)]))
+        
+        guard case let .loadImage(_, callbackQueue, _) = assetService.events.first else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        XCTAssertTrue(callbackQueue === DispatchQueue.main)
     }
     
     func test_givenNoImages_whenAdvanceIsCalled_thenNoAssetIsCancelledOrLoaded() {
@@ -299,25 +406,5 @@ extension ImageViewerViewModelTests {
                    assetService: AssetService = StubAssetService()) -> ImageViewerViewModel {
         ImageViewerViewModel(imagesService: imagesService,
                              assetService: assetService)
-    }
-    
-    func createImage(identifier: String) -> ImageDomainModel {
-        ImageDomainModel(identifier: identifier,
-                         url: URL(string: "http://test.com/\(identifier).jpg")!,
-                         width: 100,
-                         height: 100)
-    }
-    
-    func loadImages(_ images: [ImageDomainModel],
-                    into sut: ImageViewerViewModel,
-                    using imagesService: StubImagesService) {
-        sut.load()
-        
-        guard case let .retrieveImages(completionHandler) = imagesService.events.first else {
-            XCTFail("Unexpected event")
-            return
-        }
-        
-        completionHandler(.success(images))
     }
 }

@@ -16,6 +16,7 @@ struct LoadImageResult: Equatable {
 
 protocol AssetService {
     func loadImage(_ imageDomainModel: ImageDomainModel,
+                   callbackQueue: DispatchQueue,
                    completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ()))
     func cancelLoadingImage(_ imageDomainModel: ImageDomainModel)
 }
@@ -27,43 +28,48 @@ final class DefaultAssetService: AssetService {
     // MARK: - Load
     
     func loadImage(_ imageDomainModel: ImageDomainModel,
+                   callbackQueue: DispatchQueue,
                    completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ())) {
         if fileManager.fileExists(atPath: imageDomainModel.cachedLocalAssetURL().path) {
-            locallyLoadImage(imageDomainModel, completionHandler: completionHandler)
+            locallyLoadImage(imageDomainModel, callbackQueue: callbackQueue, completionHandler: completionHandler)
         } else {
-            remotelyLoadImage(imageDomainModel, completionHandler: completionHandler)
+            remotelyLoadImage(imageDomainModel, callbackQueue: callbackQueue, completionHandler: completionHandler)
         }
     }
     
     private func locallyLoadImage(_ imageDomainModel: ImageDomainModel,
+                                  callbackQueue: DispatchQueue,
                                   completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ())) {
         do {
             let data = try Data(contentsOf: URL(fileURLWithPath: imageDomainModel.cachedLocalAssetURL().path))
             
             guard let image = UIImage(data: data) else {
-                completionHandler(.failure(NetworkingError.invalidData(underlyingError: nil)))
+                callbackQueue.async {
+                    completionHandler(.failure(NetworkingError.invalidData(underlyingError: nil)))
+                }
                 return
             }
             
             let loadResult = LoadImageResult(imageDomainModel: imageDomainModel, image: image)
             let dataRequestResult = Result<LoadImageResult, Error>.success(loadResult)
             
-            DispatchQueue.main.async {
+            callbackQueue.async {
                 completionHandler(dataRequestResult)
             }
         } catch {
-            remotelyLoadImage(imageDomainModel, completionHandler: completionHandler)
+            remotelyLoadImage(imageDomainModel, callbackQueue: callbackQueue, completionHandler: completionHandler)
         }
     }
     
     private func remotelyLoadImage(_ imageDomainModel: ImageDomainModel,
+                                   callbackQueue: DispatchQueue,
                                    completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ())) {
         
         session.scheduleDownload(url: imageDomainModel.url) { (result) in
             switch result {
             case .success(let data):
                 guard let image = UIImage(data: data) else {
-                    DispatchQueue.main.async {
+                    callbackQueue.async {
                         completionHandler(.failure(NetworkingError.invalidData(underlyingError: nil)))
                     }
                     return
@@ -72,7 +78,7 @@ final class DefaultAssetService: AssetService {
                 do {
                     try data.write(to: imageDomainModel.cachedLocalAssetURL(), options: .atomic)
                 } catch let error {
-                    DispatchQueue.main.async {
+                    callbackQueue.async {
                         completionHandler(.failure(NetworkingError.invalidData(underlyingError: error)))
                     }
                     return
@@ -81,11 +87,11 @@ final class DefaultAssetService: AssetService {
                 let loadResult = LoadImageResult(imageDomainModel: imageDomainModel, image: image)
                 let dataRequestResult = Result<LoadImageResult, Error>.success(loadResult)
                 
-                DispatchQueue.main.async {
+                callbackQueue.async {
                     completionHandler(dataRequestResult)
                 }
             case .failure(let error):
-                DispatchQueue.main.async {
+                callbackQueue.async {
                     completionHandler(.failure(error))
                 }
             }
@@ -96,5 +102,16 @@ final class DefaultAssetService: AssetService {
     
     func cancelLoadingImage(_ imageDomainModel: ImageDomainModel) {
         session.cancelDownload(url: imageDomainModel.url)
+    }
+}
+
+private extension ImageDomainModel {
+    // MARK: - Cache
+    
+    func cachedLocalAssetURL() -> URL {
+        let cacheURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).last!
+        let fileName = "\(identifier).\(url.pathExtension)"
+        
+        return cacheURL.appendingPathComponent(fileName)
     }
 }
