@@ -13,7 +13,25 @@ class ImageViewerViewController: UIViewController {
     @IBOutlet weak var descriptionLabel: UILabel!
     @IBOutlet weak var loadingActivityIndicator: UIActivityIndicatorView!
     
-    private let viewModel = ImageViewerViewModel()
+    private(set) var index = 0
+    private var viewModel: ImageViewerViewModel!
+    
+    // MARK: - Instantiation
+    
+    static func instantiate(viewModel: ImageViewerViewModel,
+                            index: Int) -> ImageViewerViewController {
+        let storyboard = UIStoryboard(name: "Main", bundle: nil)
+        let identifier = String(describing: ImageViewerViewController.self)
+        
+        guard let viewController = storyboard.instantiateViewController(withIdentifier: identifier) as? ImageViewerViewController else {
+            fatalError("Expected \(identifier) to be in Main.storyboard")
+        }
+        
+        viewController.viewModel = viewModel
+        viewController.index = index
+        
+        return viewController
+    }
     
     // MARK: - ViewLifecycle
     
@@ -21,26 +39,21 @@ class ImageViewerViewController: UIViewController {
         super.viewDidLoad()
         
         viewModel.delegate = self
-        viewModel.load()
+        
+        /* This page may well be being rebuilt around a view model that is already
+         loading or loaded, so render what is there rather than waiting for a change.
+         */
+        render(viewModel.state)
     }
     
-    // MARK: - GestureRecognizer
+    // MARK: - Render
     
-    @IBAction func didTap(_ sender: Any) {
-        viewModel.advance()
-    }
-}
-
-extension ImageViewerViewController: ImageViewerViewModelDelegate {
-    
-    // MARK: - ImageViewerViewModelDelegate
-    
-    func viewModel(_ viewModel: ImageViewerViewModel,
-                   didChangeTo state: ImageViewerViewModel.State) {
+    private func render(_ state: ImageViewerViewModel.State) {
         switch state {
-        case .loadingImages:
-            loadingActivityIndicator.startAnimating()
+        case .ready(let description):
+            loadingActivityIndicator.stopAnimating()
             assetImageView.image = nil
+            descriptionLabel.text = description
         case .loadingAsset(let description):
             loadingActivityIndicator.startAnimating()
             assetImageView.image = nil
@@ -54,5 +67,15 @@ extension ImageViewerViewController: ImageViewerViewModelDelegate {
             //TODO: Handle error
             break
         }
+    }
+}
+
+extension ImageViewerViewController: ImageViewerViewModelDelegate {
+    
+    // MARK: - ImageViewerViewModelDelegate
+    
+    func viewModel(_ viewModel: ImageViewerViewModel,
+                   didChangeTo state: ImageViewerViewModel.State) {
+        render(state)
     }
 }

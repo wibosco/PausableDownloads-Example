@@ -17,9 +17,24 @@ class StubURLSessionDownloadTask: URLSessionDownloadTaskType {
         case cancelByProducingResumeData((Data?) -> Void)
     }
     
+    private static var lastTaskIdentifier = 0
+    
     private(set) var events = [Event]()
     
-    var progress: Progress = Progress()
+    let taskIdentifier: Int
+    
+    //set to report resumption data back on the thread that cancelled, rather than
+    //handing the closure back to the test to call later
+    var resumptionDataToProduceSynchronously: Data?
+    
+    // MARK: - Init
+    
+    init() {
+        StubURLSessionDownloadTask.lastTaskIdentifier += 1
+        taskIdentifier = StubURLSessionDownloadTask.lastTaskIdentifier
+    }
+    
+    // MARK: - Task
     
     func resume() {
         events.append(.resume)
@@ -31,5 +46,9 @@ class StubURLSessionDownloadTask: URLSessionDownloadTaskType {
     
     func cancel(byProducingResumeData completionHandler: @escaping (Data?) -> Void) {
         events.append(.cancelByProducingResumeData(completionHandler))
+        
+        if let resumptionDataToProduceSynchronously = resumptionDataToProduceSynchronously {
+            completionHandler(resumptionDataToProduceSynchronously)
+        }
     }
 }

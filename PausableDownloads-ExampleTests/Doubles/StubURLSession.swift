@@ -12,8 +12,8 @@ import Foundation
 
 class StubURLSession: URLSessionType {
     enum Event {
-        case downloadTask(URL, (URL?, URLResponse?, Error?) -> Void)
-        case downloadTaskWithResumeData(Data, (URL?, URLResponse?, Error?) -> Void)
+        case downloadTask(URL)
+        case downloadTaskWithResumeData(Data)
     }
     
     private(set) var events = [Event]()
@@ -21,16 +21,27 @@ class StubURLSession: URLSessionType {
     var downloadTaskToReturn: StubURLSessionDownloadTask!
     var downloadTaskWithResumeDataToReturn: StubURLSessionDownloadTask!
     
-    func downloadTask(with url: URL, completionHandler: @escaping (URL?, URLResponse?, Error?) -> Void) -> URLSessionDownloadTaskType {
-        events.append(.downloadTask(url, completionHandler))
+    //when several downloads are in flight at once they need distinct tasks - each call
+    //takes the next one from here before falling back to the single stubs above
+    var downloadTasksToReturn = [StubURLSessionDownloadTask]()
+    
+    func downloadTask(with url: URL) -> URLSessionDownloadTaskType {
+        events.append(.downloadTask(url))
         
-        return downloadTaskToReturn
+        return nextDownloadTask() ?? downloadTaskToReturn
     }
     
-    func downloadTask(withResumeData resumeData: Data,
-                      completionHandler: @escaping (URL?, URLResponse?, Error?) -> Void) -> URLSessionDownloadTaskType {
-        events.append(.downloadTaskWithResumeData(resumeData, completionHandler))
+    func downloadTask(withResumeData resumeData: Data) -> URLSessionDownloadTaskType {
+        events.append(.downloadTaskWithResumeData(resumeData))
         
-        return downloadTaskWithResumeDataToReturn
+        return nextDownloadTask() ?? downloadTaskWithResumeDataToReturn
+    }
+    
+    private func nextDownloadTask() -> StubURLSessionDownloadTask? {
+        guard !downloadTasksToReturn.isEmpty else {
+            return nil
+        }
+        
+        return downloadTasksToReturn.removeFirst()
     }
 }

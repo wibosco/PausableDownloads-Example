@@ -17,7 +17,6 @@ enum HTTPRequestMethod: String {
 }
 
 class RequestConfig {
-    
     let apiKey: String
     let APIHost: String
     let timeInterval: TimeInterval

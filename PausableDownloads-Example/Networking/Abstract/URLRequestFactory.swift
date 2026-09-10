@@ -15,7 +15,6 @@ enum NetworkingError: Error {
 }
 
 class URLRequestFactory {
-    
     let config: RequestConfig
     
     // MARK: - Init

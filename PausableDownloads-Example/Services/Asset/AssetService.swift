@@ -15,10 +15,14 @@ struct LoadImageResult: Equatable {
 }
 
 protocol AssetService {
+    /* Returns the id of the download it started, or nil when the asset was already
+     cached locally and there's nothing to pause.
+     */
+    @discardableResult
     func loadImage(_ imageDomainModel: ImageDomainModel,
                    callbackQueue: DispatchQueue,
-                   completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ()))
-    func cancelLoadingImage(_ imageDomainModel: ImageDomainModel)
+                   completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ())) -> DownloadToken?
+    func cancelLoadingImage(_ downloadToken: DownloadToken)
 }
 
 final class DefaultAssetService: AssetService {
@@ -27,19 +31,20 @@ final class DefaultAssetService: AssetService {
     
     // MARK: - Load
     
+    @discardableResult
     func loadImage(_ imageDomainModel: ImageDomainModel,
                    callbackQueue: DispatchQueue,
-                   completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ())) {
+                   completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ())) -> DownloadToken? {
         if fileManager.fileExists(atPath: imageDomainModel.cachedLocalAssetURL().path) {
-            locallyLoadImage(imageDomainModel, callbackQueue: callbackQueue, completionHandler: completionHandler)
+            return locallyLoadImage(imageDomainModel, callbackQueue: callbackQueue, completionHandler: completionHandler)
         } else {
-            remotelyLoadImage(imageDomainModel, callbackQueue: callbackQueue, completionHandler: completionHandler)
+            return remotelyLoadImage(imageDomainModel, callbackQueue: callbackQueue, completionHandler: completionHandler)
         }
     }
     
     private func locallyLoadImage(_ imageDomainModel: ImageDomainModel,
                                   callbackQueue: DispatchQueue,
-                                  completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ())) {
+                                  completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ())) -> DownloadToken? {
         do {
             let data = try Data(contentsOf: URL(fileURLWithPath: imageDomainModel.cachedLocalAssetURL().path))
             
@@ -47,7 +52,7 @@ final class DefaultAssetService: AssetService {
                 callbackQueue.async {
                     completionHandler(.failure(NetworkingError.invalidData(underlyingError: nil)))
                 }
-                return
+                return nil
             }
             
             let loadResult = LoadImageResult(imageDomainModel: imageDomainModel, image: image)
@@ -56,14 +61,17 @@ final class DefaultAssetService: AssetService {
             callbackQueue.async {
                 completionHandler(dataRequestResult)
             }
+            
+            return nil
         } catch {
-            remotelyLoadImage(imageDomainModel, callbackQueue: callbackQueue, completionHandler: completionHandler)
+            return remotelyLoadImage(imageDomainModel, callbackQueue: callbackQueue, completionHandler: completionHandler)
         }
     }
     
+    @discardableResult
     private func remotelyLoadImage(_ imageDomainModel: ImageDomainModel,
                                    callbackQueue: DispatchQueue,
-                                   completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ())) {
+                                   completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ())) -> DownloadToken {
         
         session.scheduleDownload(url: imageDomainModel.url) { (result) in
             switch result {
@@ -76,6 +84,11 @@ final class DefaultAssetService: AssetService {
                 }
                 
                 do {
+                    /* Callers that coalesced onto one download each write these same bytes to
+                     the same path. The writes are atomic, sequential and identical, so the
+                     redundancy costs a little disk churn and nothing else - deduplicating it
+                     would mean moving caching down into the download session.
+                     */
                     try data.write(to: imageDomainModel.cachedLocalAssetURL(), options: .atomic)
                 } catch let error {
                     callbackQueue.async {
@@ -100,8 +113,8 @@ final class DefaultAssetService: AssetService {
     
     // MARK: - Cancel
     
-    func cancelLoadingImage(_ imageDomainModel: ImageDomainModel) {
-        session.cancelDownload(url: imageDomainModel.url)
+    func cancelLoadingImage(_ downloadToken: DownloadToken) {
+        session.pauseDownload(downloadToken)
     }
 }
 

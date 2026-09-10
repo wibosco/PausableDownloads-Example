@@ -17,14 +17,10 @@ class AssetDownloadsSessionTests: XCTestCase {
     // MARK: Init
     
     func test_givenURLSessionFactory_whenInitialised_thenDefaultSessionIsCreatedWithSelfAsDelegateAndNoQueue() {
-        let notificationCenter = StubNotificationCenter()
-        notificationCenter.objectToReturn = NSObject()
-        
         let sessionFactory = StubURLSessionFactory()
         sessionFactory.sessionToReturn = StubURLSession()
         
-        let sut = createSUT(urlSessionFactory: sessionFactory,
-                            notificationCenter: notificationCenter)
+        let sut = createSUT(urlSessionFactory: sessionFactory)
         
         XCTAssertEqual(sessionFactory.events.count, 1)
         
@@ -43,11 +39,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let notificationCenter = StubNotificationCenter()
         notificationCenter.objectToReturn = NSObject()
         
-        let sessionFactory = StubURLSessionFactory()
-        sessionFactory.sessionToReturn = StubURLSession()
-        
-        _ = createSUT(urlSessionFactory: sessionFactory,
-                      notificationCenter: notificationCenter)
+        _ = createSUT(notificationCenter: notificationCenter)
         
         XCTAssertEqual(notificationCenter.events.count, 1)
         
@@ -61,18 +53,14 @@ class AssetDownloadsSessionTests: XCTestCase {
         XCTAssertTrue(queue === OperationQueue.main)
     }
     
-    func test_givenPausedDownload_whenMemoryWarningNotificationIsReceived_thenDownloadTaskIsCancelled() {
+    func test_givenPausedDownload_whenMemoryWarningNotificationIsReceived_thenTheDownloadIsDiscarded() {
         let url = URL(string: "http://test.com/example")!
         
         let notificationCenter = StubNotificationCenter()
         notificationCenter.objectToReturn = NSObject()
         
-        let sessionFactory = StubURLSessionFactory()
         let session = StubURLSession()
-        sessionFactory.sessionToReturn = session
-        
-        let sut = createSUT(urlSessionFactory: sessionFactory,
-                            notificationCenter: notificationCenter)
+        let sut = createSUT(session: session, notificationCenter: notificationCenter)
         
         guard case let .addObserver(_, _, _, notificationBlock) = notificationCenter.events.first else {
             XCTFail("Unexpected event")
@@ -82,26 +70,33 @@ class AssetDownloadsSessionTests: XCTestCase {
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        sut.scheduleDownload(url: url) { _ in }
+        let downloadID = sut.scheduleDownload(url: url) { _ in }
         
         XCTAssertEqual(session.events.count, 1)
         
-        sut.cancelDownload(url: url)
+        sut.pauseDownload(downloadID)
         
         XCTAssertEqual(downloadTask.events.count, 2)
         
-        guard case .cancelByProducingResumeData = downloadTask.events.last else {
+        guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
             XCTFail("Unexpected event")
             return
         }
         
+        resumeDataHandler(Data("resumption".utf8))
+        
         let notification = Notification(name: UIApplication.didReceiveMemoryWarningNotification)
         notificationBlock(notification)
         
-        XCTAssertEqual(downloadTask.events.count, 3)
+        //the purged item took its resumption data with it, so the next schedule starts over
+        session.downloadTaskWithResumeDataToReturn = StubURLSessionDownloadTask()
         
-        guard case .cancel = downloadTask.events.last else {
-            XCTFail("Unexpected event")
+        sut.scheduleDownload(url: url) { _ in }
+        
+        XCTAssertEqual(session.events.count, 2)
+        
+        guard case .downloadTask = session.events.last else {
+            XCTFail("Expected a new download task rather than a resumed one")
             return
         }
     }
@@ -112,12 +107,8 @@ class AssetDownloadsSessionTests: XCTestCase {
         let notificationCenter = StubNotificationCenter()
         notificationCenter.objectToReturn = NSObject()
         
-        let sessionFactory = StubURLSessionFactory()
         let session = StubURLSession()
-        sessionFactory.sessionToReturn = session
-        
-        let sut = createSUT(urlSessionFactory: sessionFactory,
-                            notificationCenter: notificationCenter)
+        let sut = createSUT(session: session, notificationCenter: notificationCenter)
         
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
@@ -147,15 +138,8 @@ class AssetDownloadsSessionTests: XCTestCase {
     func test_givenNoExistingDownload_whenScheduleDownloadIsCalled_thenDownloadTaskIsCreatedForURLAndResumed() {
         let url = URL(string: "http://test.com/example")!
         
-        let notificationCenter = StubNotificationCenter()
-        notificationCenter.objectToReturn = NSObject()
-        
-        let sessionFactory = StubURLSessionFactory()
         let session = StubURLSession()
-        sessionFactory.sessionToReturn = session
-        
-        let sut = createSUT(urlSessionFactory: sessionFactory,
-                            notificationCenter: notificationCenter)
+        let sut = createSUT(session: session)
         
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
@@ -171,7 +155,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         
         XCTAssertEqual(session.events.count, 1)
         
-        guard case let .downloadTask(downloadTaskURL, _) = session.events.first else {
+        guard case let .downloadTask(downloadTaskURL) = session.events.first else {
             XCTFail("Unexpected event")
             return
         }
@@ -180,15 +164,8 @@ class AssetDownloadsSessionTests: XCTestCase {
     }
     
     func test_givenNoExistingDownloads_whenScheduleDownloadIsCalledForTwoDifferentURLs_thenBothDownloadTasksAreResumed() {
-        let notificationCenter = StubNotificationCenter()
-        notificationCenter.objectToReturn = NSObject()
-        
-        let sessionFactory = StubURLSessionFactory()
         let session = StubURLSession()
-        sessionFactory.sessionToReturn = session
-        
-        let sut = createSUT(urlSessionFactory: sessionFactory,
-                            notificationCenter: notificationCenter)
+        let sut = createSUT(session: session)
         
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
@@ -198,7 +175,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         
         sut.scheduleDownload(url: urlA) { _ in }
         sut.scheduleDownload(url: urlB) { _ in }
-
+        
         XCTAssertEqual(downloadTask.events.count, 2)
         
         guard case .resume = downloadTask.events.first,
@@ -207,79 +184,93 @@ class AssetDownloadsSessionTests: XCTestCase {
             return
         }
     }
-
-    func test_givenInFlightDownload_whenScheduleDownloadIsCalledForTheSameURL_thenNoSecondTaskIsCreatedAndBothCompletionHandlersAreCalled() {
+    
+    func test_givenInFlightDownload_whenScheduleDownloadIsCalledForTheSameURL_thenOneDownloadIsSharedAndBothCompletionHandlersAreCalled() {
         let url = URL(string: "http://test.com/example")!
         
-        let notificationCenter = StubNotificationCenter()
-        notificationCenter.objectToReturn = NSObject()
-        
-        let sessionFactory = StubURLSessionFactory()
         let session = StubURLSession()
-        sessionFactory.sessionToReturn = session
-        
-        let sut = createSUT(urlSessionFactory: sessionFactory,
-                            notificationCenter: notificationCenter)
+        let sut = createSUT(session: session)
         
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        let firstCompletionExpectation = expectation(description: "firstCompletionExpectation")
-        sut.scheduleDownload(url: url) { (_) in
-            firstCompletionExpectation.fulfill()
-        }
+        var firstResults = [Result<Data, Error>]()
+        sut.scheduleDownload(url: url) { firstResults.append($0) }
         
-        let secondCompletionExpectation = expectation(description: "secondCompletionExpectation")
-        sut.scheduleDownload(url: url) { (_) in
-            secondCompletionExpectation.fulfill()
-        }
+        var secondResults = [Result<Data, Error>]()
+        sut.scheduleDownload(url: url) { secondResults.append($0) }
         
+        //a second caller coalesces onto the download that's already running
+        XCTAssertEqual(session.events.count, 1)
         XCTAssertEqual(downloadTask.events.count, 1)
         
-        guard case .resume = downloadTask.events.first else {
-            XCTFail("Unexpected event")
-            return
-        }
+        sut.handleComplete(forTaskWith: downloadTask.taskIdentifier, error: TestError.test)
         
-        XCTAssertEqual(session.events.count, 1)
-        
-        guard case let .downloadTask(_, completionHandler) = session.events.first else {
-            XCTFail("Unexpected event")
-            return
-        }
-        
-        completionHandler(nil, nil, nil)
-        
-        waitForExpectations(timeout: 3, handler: nil)
+        XCTAssertEqual(firstResults.count, 1)
+        XCTAssertEqual(secondResults.count, 1)
     }
     
-    func test_givenPausedDownload_whenScheduleDownloadIsCalledForTheSameURL_thenExistingDownloadTaskIsResumed() {
+    func test_givenTwoCallersForTheSameURL_whenOneIsPaused_thenTheSharedTaskIsNotCancelledAndTheOtherIsStillAnswered() {
         let url = URL(string: "http://test.com/example")!
         
-        let notificationCenter = StubNotificationCenter()
-        notificationCenter.objectToReturn = NSObject()
-        
-        let sessionFactory = StubURLSessionFactory()
         let session = StubURLSession()
-        sessionFactory.sessionToReturn = session
-        
-        let sut = createSUT(urlSessionFactory: sessionFactory,
-                            notificationCenter: notificationCenter)
+        let sut = createSUT(session: session)
         
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
-
-        sut.scheduleDownload(url: url) { _ in }
-        sut.cancelDownload(url: url)
+        
+        var firstResults = [Result<Data, Error>]()
+        let firstDownloadToken = sut.scheduleDownload(url: url) { firstResults.append($0) }
+        
+        var secondResults = [Result<Data, Error>]()
+        sut.scheduleDownload(url: url) { secondResults.append($0) }
+        
+        sut.pauseDownload(firstDownloadToken)
+        
+        //the second caller still wants this URL, so the shared task keeps running
+        XCTAssertEqual(downloadTask.events.count, 1)
+        
+        guard case .resume = downloadTask.events.last else {
+            XCTFail("Expected the shared download not to be cancelled")
+            return
+        }
+        
+        sut.handleComplete(forTaskWith: downloadTask.taskIdentifier, error: TestError.test)
+        
+        XCTAssertEqual(secondResults.count, 1)
+        XCTAssertTrue(firstResults.isEmpty)
+    }
+    
+    func test_givenPausedDownloadThatProducedNoResumptionData_whenScheduleDownloadIsCalledForTheSameURL_thenTheDownloadRestarts() {
+        let url = URL(string: "http://test.com/example")!
+        
+        let session = StubURLSession()
+        let sut = createSUT(session: session)
+        
+        let downloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskToReturn = downloadTask
+        
+        let downloadID = sut.scheduleDownload(url: url) { _ in }
+        sut.pauseDownload(downloadID)
         
         XCTAssertEqual(downloadTask.events.count, 2)
         
-        guard case .cancelByProducingResumeData = downloadTask.events.last else {
+        guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
             XCTFail("Unexpected event")
             return
         }
         
+        //a server that can't resume hands back no data, so starting over is all that's left
+        resumeDataHandler(nil)
+        
         sut.scheduleDownload(url: url) { _ in }
+        
+        XCTAssertEqual(session.events.count, 2)
+        
+        guard case .downloadTask = session.events.last else {
+            XCTFail("Unexpected event")
+            return
+        }
         
         XCTAssertEqual(downloadTask.events.count, 3)
         
@@ -288,87 +279,169 @@ class AssetDownloadsSessionTests: XCTestCase {
             return
         }
     }
-
-    func test_givenCompletedDownload_whenScheduleDownloadIsCalledForTheSameURL_thenANewDownloadTaskIsCreated() {
-        let url = URL(string: "http://test.com/example")!
-        
-        let notificationCenter = StubNotificationCenter()
-        notificationCenter.objectToReturn = NSObject()
-        
-        let sessionFactory = StubURLSessionFactory()
-        let session = StubURLSession()
-        sessionFactory.sessionToReturn = session
-        
-        let sut = createSUT(urlSessionFactory: sessionFactory,
-                            notificationCenter: notificationCenter)
-        
-        session.downloadTaskToReturn = StubURLSessionDownloadTask()
-        
-        sut.scheduleDownload(url: url) { (_) in }
-        
-        XCTAssertEqual(session.events.count, 1)
-        
-        guard case let .downloadTask(_, completionHandler) = session.events.first else {
-            XCTFail("Unexpected event")
-            return
-        }
-        
-        completionHandler(nil, nil, nil)
-        
-        sut.scheduleDownload(url: url) { (_) in }
-        
-        XCTAssertEqual(session.events.count, 2)
-    }
-
-    func test_givenScheduledDownload_whenTheDownloadTaskCompletes_thenTheCompletionHandlerIsCalled() {
-        let url = URL(string: "http://test.com/example")!
-        
-        let notificationCenter = StubNotificationCenter()
-        notificationCenter.objectToReturn = NSObject()
-        
-        let sessionFactory = StubURLSessionFactory()
-        let session = StubURLSession()
-        sessionFactory.sessionToReturn = session
-        
-        let sut = createSUT(urlSessionFactory: sessionFactory,
-                            notificationCenter: notificationCenter)
-        
-        session.downloadTaskToReturn = StubURLSessionDownloadTask()
-        
-        let completionExpectation = expectation(description: "completionExpectation")
-        sut.scheduleDownload(url: url) { (_) in
-            completionExpectation.fulfill()
-        }
-
-        guard case let .downloadTask(_, completionHandler) = session.events.first else {
-            XCTFail("Unexpected event")
-            return
-        }
-
-        completionHandler(nil, nil, nil)
-
-        waitForExpectations(timeout: 3, handler: nil)
-    }
-
-    func test_givenPausedDownloadWithResumptionData_whenScheduleDownloadIsCalledForTheSameURL_thenDownloadTaskIsCreatedFromResumeData() {
+    
+    func test_givenPauseStillProducingResumptionData_whenScheduleDownloadIsCalledForTheSameURL_thenTheResumeWaitsForTheResumptionData() {
         let url = URL(string: "http://test.com/example")!
         let resumptionData = Data("resumption".utf8)
         
-        let notificationCenter = StubNotificationCenter()
-        notificationCenter.objectToReturn = NSObject()
-        
-        let sessionFactory = StubURLSessionFactory()
         let session = StubURLSession()
-        sessionFactory.sessionToReturn = session
+        let sut = createSUT(session: session)
         
-        let sut = createSUT(urlSessionFactory: sessionFactory,
-                            notificationCenter: notificationCenter)
+        let downloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskToReturn = downloadTask
+        
+        let downloadID = sut.scheduleDownload(url: url) { _ in }
+        sut.pauseDownload(downloadID)
+        
+        guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        let resumedDownloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskWithResumeDataToReturn = resumedDownloadTask
+        
+        //rescheduling whilst the resumption data is still in flight - the fast swipe back
+        sut.scheduleDownload(url: url) { _ in }
+        
+        XCTAssertEqual(session.events.count, 1)
+        
+        resumeDataHandler(resumptionData)
+        
+        XCTAssertEqual(session.events.count, 2)
+        
+        guard case let .downloadTaskWithResumeData(data) = session.events.last else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        XCTAssertEqual(data, resumptionData)
+        
+        XCTAssertEqual(resumedDownloadTask.events.count, 1)
+        
+        guard case .resume = resumedDownloadTask.events.first else {
+            XCTFail("Unexpected event")
+            return
+        }
+    }
+    
+    func test_givenACallerThatJoinedAPauseInFlight_whenItPausesBeforeTheResumptionDataLands_thenNoTaskIsEverStarted() {
+        let url = URL(string: "http://test.com/example")!
+        
+        let session = StubURLSession()
+        let sut = createSUT(session: session)
+        
+        let downloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskToReturn = downloadTask
+        session.downloadTaskWithResumeDataToReturn = StubURLSessionDownloadTask()
+        
+        let firstDownloadID = sut.scheduleDownload(url: url) { _ in }
+        sut.pauseDownload(firstDownloadID)
+        
+        guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        //scheduled whilst the pause is still in flight, so it joins rather than starting a task
+        let joinedDownloadToken = sut.scheduleDownload(url: url) { _ in }
+        
+        XCTAssertEqual(session.events.count, 1)
+        
+        sut.pauseDownload(joinedDownloadToken)
+        
+        resumeDataHandler(Data("resumption".utf8))
+        
+        //nothing was waiting on the data by the time it landed
+        XCTAssertEqual(session.events.count, 1)
+    }
+    
+    func test_givenPausedDownload_whenTheCancelledDownloadTaskCompletes_thenTheCompletionHandlerIsNotCalled() {
+        let url = URL(string: "http://test.com/example")!
+        
+        let session = StubURLSession()
+        let sut = createSUT(session: session)
+        
+        let downloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskToReturn = downloadTask
+        
+        var results = [Result<Data, Error>]()
+        let downloadID = sut.scheduleDownload(url: url) { results.append($0) }
+        
+        guard case .downloadTask = session.events.first else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        sut.pauseDownload(downloadID)
+        
+        //pausing cancels the underlying task, which reports back as a cancellation error
+        sut.handleComplete(forTaskWith: downloadTask.taskIdentifier, error: URLError(.cancelled))
+        
+        XCTAssertTrue(results.isEmpty)
+    }
+    
+    func test_givenCompletedDownload_whenScheduleDownloadIsCalledForTheSameURL_thenANewDownloadTaskIsCreated() {
+        let url = URL(string: "http://test.com/example")!
+        
+        let session = StubURLSession()
+        let sut = createSUT(session: session)
         
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
         sut.scheduleDownload(url: url) { _ in }
-        sut.cancelDownload(url: url)
+        
+        XCTAssertEqual(session.events.count, 1)
+        
+        guard case .downloadTask = session.events.first else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        sut.handleComplete(forTaskWith: downloadTask.taskIdentifier, error: nil)
+        
+        sut.scheduleDownload(url: url) { _ in }
+        
+        XCTAssertEqual(session.events.count, 2)
+    }
+    
+    func test_givenScheduledDownload_whenTheDownloadTaskCompletes_thenTheCompletionHandlerIsCalled() {
+        let url = URL(string: "http://test.com/example")!
+        
+        let session = StubURLSession()
+        let sut = createSUT(session: session)
+        
+        let downloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskToReturn = downloadTask
+        
+        let completionExpectation = expectation(description: "completionExpectation")
+        sut.scheduleDownload(url: url) { _ in
+            completionExpectation.fulfill()
+        }
+        
+        guard case .downloadTask = session.events.first else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        sut.handleComplete(forTaskWith: downloadTask.taskIdentifier, error: nil)
+        
+        waitForExpectations(timeout: 3, handler: nil)
+    }
+    
+    func test_givenPausedDownloadWithResumptionData_whenScheduleDownloadIsCalledForTheSameURL_thenDownloadTaskIsCreatedFromResumeData() {
+        let url = URL(string: "http://test.com/example")!
+        let resumptionData = Data("resumption".utf8)
+        
+        let session = StubURLSession()
+        let sut = createSUT(session: session)
+        
+        let downloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskToReturn = downloadTask
+        
+        let downloadID = sut.scheduleDownload(url: url) { _ in }
+        sut.pauseDownload(downloadID)
         
         guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
             XCTFail("Unexpected event")
@@ -384,7 +457,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         
         XCTAssertEqual(session.events.count, 2)
         
-        guard case let .downloadTaskWithResumeData(data, _) = session.events.last else {
+        guard case let .downloadTaskWithResumeData(data) = session.events.last else {
             XCTFail("Unexpected event")
             return
         }
@@ -405,17 +478,11 @@ class AssetDownloadsSessionTests: XCTestCase {
         
         XCTAssertFalse(expectedData.isEmpty)
         
-        let notificationCenter = StubNotificationCenter()
-        notificationCenter.objectToReturn = NSObject()
-        
-        let sessionFactory = StubURLSessionFactory()
         let session = StubURLSession()
-        sessionFactory.sessionToReturn = session
+        let sut = createSUT(session: session)
         
-        let sut = createSUT(urlSessionFactory: sessionFactory,
-                            notificationCenter: notificationCenter)
-        
-        session.downloadTaskToReturn = StubURLSessionDownloadTask()
+        let downloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskToReturn = downloadTask
         
         var receivedResult: Result<Data, Error>?
         let completionExpectation = expectation(description: "completionExpectation")
@@ -424,12 +491,13 @@ class AssetDownloadsSessionTests: XCTestCase {
             completionExpectation.fulfill()
         }
         
-        guard case let .downloadTask(_, completionHandler) = session.events.first else {
+        guard case .downloadTask = session.events.first else {
             XCTFail("Unexpected event")
             return
         }
         
-        completionHandler(fileURL, nil, nil)
+        sut.handleFinishedDownloading(forTaskWith: downloadTask.taskIdentifier, to: fileURL)
+        sut.handleComplete(forTaskWith: downloadTask.taskIdentifier, error: nil)
         
         waitForExpectations(timeout: 3, handler: nil)
         
@@ -444,17 +512,11 @@ class AssetDownloadsSessionTests: XCTestCase {
     func test_givenScheduledDownload_whenTheDownloadTaskCompletesWithAnError_thenTheCompletionHandlerReceivesARetrievalFailure() throws {
         let url = URL(string: "http://test.com/example")!
         
-        let notificationCenter = StubNotificationCenter()
-        notificationCenter.objectToReturn = NSObject()
-        
-        let sessionFactory = StubURLSessionFactory()
         let session = StubURLSession()
-        sessionFactory.sessionToReturn = session
+        let sut = createSUT(session: session)
         
-        let sut = createSUT(urlSessionFactory: sessionFactory,
-                            notificationCenter: notificationCenter)
-        
-        session.downloadTaskToReturn = StubURLSessionDownloadTask()
+        let downloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskToReturn = downloadTask
         
         var receivedResult: Result<Data, Error>?
         let completionExpectation = expectation(description: "completionExpectation")
@@ -463,12 +525,12 @@ class AssetDownloadsSessionTests: XCTestCase {
             completionExpectation.fulfill()
         }
         
-        guard case let .downloadTask(_, completionHandler) = session.events.first else {
+        guard case .downloadTask = session.events.first else {
             XCTFail("Unexpected event")
             return
         }
         
-        completionHandler(nil, nil, TestError.test)
+        sut.handleComplete(forTaskWith: downloadTask.taskIdentifier, error: TestError.test)
         
         waitForExpectations(timeout: 3, handler: nil)
         
@@ -485,17 +547,11 @@ class AssetDownloadsSessionTests: XCTestCase {
         let url = URL(string: "http://test.com/example")!
         let unreadableFileURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("does-not-exist-\(UUID().uuidString)")
         
-        let notificationCenter = StubNotificationCenter()
-        notificationCenter.objectToReturn = NSObject()
-        
-        let sessionFactory = StubURLSessionFactory()
         let session = StubURLSession()
-        sessionFactory.sessionToReturn = session
+        let sut = createSUT(session: session)
         
-        let sut = createSUT(urlSessionFactory: sessionFactory,
-                            notificationCenter: notificationCenter)
-        
-        session.downloadTaskToReturn = StubURLSessionDownloadTask()
+        let downloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskToReturn = downloadTask
         
         var receivedResult: Result<Data, Error>?
         let completionExpectation = expectation(description: "completionExpectation")
@@ -504,12 +560,13 @@ class AssetDownloadsSessionTests: XCTestCase {
             completionExpectation.fulfill()
         }
         
-        guard case let .downloadTask(_, completionHandler) = session.events.first else {
+        guard case .downloadTask = session.events.first else {
             XCTFail("Unexpected event")
             return
         }
         
-        completionHandler(unreadableFileURL, nil, nil)
+        sut.handleFinishedDownloading(forTaskWith: downloadTask.taskIdentifier, to: unreadableFileURL)
+        sut.handleComplete(forTaskWith: downloadTask.taskIdentifier, error: nil)
         
         waitForExpectations(timeout: 3, handler: nil)
         
@@ -520,77 +577,78 @@ class AssetDownloadsSessionTests: XCTestCase {
         }
     }
     
-    func test_givenTwoCoalescedDownloads_whenTheDownloadTaskCompletes_thenBothCompletionHandlersReceiveTheSameData() throws {
+    func test_givenPauseThenResume_whenTheCancelledDownloadTaskCompletes_thenItIsIgnoredAndTheResumedTaskStillCompletes() {
         let url = URL(string: "http://test.com/example")!
-        let fileURL = try XCTUnwrap(Bundle(for: type(of: self)).url(forResource: "square", withExtension: "pdf"))
-        let expectedData = try Data(contentsOf: fileURL)
         
-        let notificationCenter = StubNotificationCenter()
-        notificationCenter.objectToReturn = NSObject()
-        
-        let sessionFactory = StubURLSessionFactory()
         let session = StubURLSession()
-        sessionFactory.sessionToReturn = session
+        let sut = createSUT(session: session)
         
-        let sut = createSUT(urlSessionFactory: sessionFactory,
-                            notificationCenter: notificationCenter)
+        let retiredDownloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskToReturn = retiredDownloadTask
         
-        session.downloadTaskToReturn = StubURLSessionDownloadTask()
+        let downloadID = sut.scheduleDownload(url: url) { _ in }
+        sut.pauseDownload(downloadID)
         
-        var firstReceivedResult: Result<Data, Error>?
-        let firstCompletionExpectation = expectation(description: "firstCompletionExpectation")
-        sut.scheduleDownload(url: url) { (result) in
-            firstReceivedResult = result
-            firstCompletionExpectation.fulfill()
-        }
-        
-        var secondReceivedResult: Result<Data, Error>?
-        let secondCompletionExpectation = expectation(description: "secondCompletionExpectation")
-        sut.scheduleDownload(url: url) { (result) in
-            secondReceivedResult = result
-            secondCompletionExpectation.fulfill()
-        }
-        
-        guard case let .downloadTask(_, completionHandler) = session.events.first else {
+        guard case let .cancelByProducingResumeData(resumeDataHandler) = retiredDownloadTask.events.last else {
             XCTFail("Unexpected event")
             return
         }
         
-        completionHandler(fileURL, nil, nil)
+        resumeDataHandler(Data("resumption".utf8))
         
-        waitForExpectations(timeout: 3, handler: nil)
+        let resumedDownloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskWithResumeDataToReturn = resumedDownloadTask
         
-        guard case let .success(firstData) = try XCTUnwrap(firstReceivedResult),
-              case let .success(secondData) = try XCTUnwrap(secondReceivedResult) else {
-            XCTFail("Expected both handlers to receive a success result")
-            return
-        }
+        var results = [Result<Data, Error>]()
+        sut.scheduleDownload(url: url) { results.append($0) }
         
-        XCTAssertEqual(firstData, expectedData)
-        XCTAssertEqual(secondData, expectedData)
+        //the task the pause retired winds down late and must not be mistaken for this download
+        sut.handleComplete(forTaskWith: retiredDownloadTask.taskIdentifier, error: URLError(.cancelled))
+        
+        XCTAssertTrue(results.isEmpty)
+        
+        sut.handleComplete(forTaskWith: resumedDownloadTask.taskIdentifier, error: nil)
+        
+        XCTAssertEqual(results.count, 1)
     }
     
-    // MARK: Cancel
-
-    func test_givenScheduledDownload_whenCancelDownloadIsCalled_thenDownloadTaskIsCancelledByProducingResumeData() {
+    func test_givenNoMatchingDownload_whenAnEventForAnUnknownTaskIsReceived_thenItIsIgnored() {
         let url = URL(string: "http://test.com/example")!
         
-        let notificationCenter = StubNotificationCenter()
-        notificationCenter.objectToReturn = NSObject()
-        
-        let sessionFactory = StubURLSessionFactory()
         let session = StubURLSession()
-        sessionFactory.sessionToReturn = session
-        
-        let sut = createSUT(urlSessionFactory: sessionFactory,
-                            notificationCenter: notificationCenter)
+        let sut = createSUT(session: session)
         
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        sut.scheduleDownload(url: url) { _ in }
-        sut.cancelDownload(url: url)
-
+        var results = [Result<Data, Error>]()
+        sut.scheduleDownload(url: url) { results.append($0) }
+        
+        let unknownURL = URL(string: "http://test.com/unknown")!
+        let unknownTaskIdentifier = downloadTask.taskIdentifier + 1000
+        
+        sut.handleProgress(for: unknownURL, totalBytesWritten: 50, expectedTotalBytes: 100)
+        sut.handleResumption(for: unknownURL, fileOffset: 50, expectedTotalBytes: 100)
+        sut.handleFinishedDownloading(forTaskWith: unknownTaskIdentifier, to: URL(fileURLWithPath: "/dev/null"))
+        sut.handleComplete(forTaskWith: unknownTaskIdentifier, error: nil)
+        
+        XCTAssertTrue(results.isEmpty)
+    }
+    
+    // MARK: Cancel
+    
+    func test_givenScheduledDownload_whenCancelDownloadIsCalled_thenDownloadTaskIsCancelledByProducingResumeData() {
+        let url = URL(string: "http://test.com/example")!
+        
+        let session = StubURLSession()
+        let sut = createSUT(session: session)
+        
+        let downloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskToReturn = downloadTask
+        
+        let downloadID = sut.scheduleDownload(url: url) { _ in }
+        sut.pauseDownload(downloadID)
+        
         XCTAssertEqual(downloadTask.events.count, 2)
         
         guard case .cancelByProducingResumeData = downloadTask.events.last else {
@@ -599,31 +657,291 @@ class AssetDownloadsSessionTests: XCTestCase {
         }
     }
     
-    func test_givenNoScheduledDownloads_whenCancelDownloadIsCalledForAnUnknownURL_thenNoDownloadTaskEventsAreRecorded() {
-        let unknownURL = URL(string: "http://test.com/unknown")!
+    func test_givenScheduledDownload_whenTheCancelledTaskProducesResumptionDataSynchronously_thenTheResumptionDataIsStored() {
+        let url = URL(string: "http://test.com/example")!
+        let resumptionData = Data("resumption".utf8)
         
-        let notificationCenter = StubNotificationCenter()
-        notificationCenter.objectToReturn = NSObject()
-        
-        let sessionFactory = StubURLSessionFactory()
         let session = StubURLSession()
-        sessionFactory.sessionToReturn = session
+        let sut = createSUT(session: session)
         
-        let sut = createSUT(urlSessionFactory: sessionFactory,
-                            notificationCenter: notificationCenter)
+        let downloadTask = StubURLSessionDownloadTask()
+        downloadTask.resumptionDataToProduceSynchronously = resumptionData
+        session.downloadTaskToReturn = downloadTask
+        
+        let downloadID = sut.scheduleDownload(url: url) { _ in }
+        
+        //a task that reports back on the thread that cancelled it deadlocks anything
+        //cancelling whilst still holding the downloads queue
+        sut.pauseDownload(downloadID)
+        
+        session.downloadTaskWithResumeDataToReturn = StubURLSessionDownloadTask()
+        
+        sut.scheduleDownload(url: url) { _ in }
+        
+        XCTAssertEqual(session.events.count, 2)
+        
+        guard case let .downloadTaskWithResumeData(data) = session.events.last else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        XCTAssertEqual(data, resumptionData)
+    }
+    
+    func test_givenNoScheduledDownloads_whenCancelDownloadIsCalledForAnUnknownID_thenNoDownloadTaskEventsAreRecorded() {
+        let url = URL(string: "http://test.com/example")!
+        
+        let session = StubURLSession()
+        let sut = createSUT(session: session)
         
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        sut.cancelDownload(url: unknownURL)
+        sut.pauseDownload(DownloadToken(url: url))
         
         XCTAssertTrue(session.events.isEmpty)
         XCTAssertTrue(downloadTask.events.isEmpty)
     }
+    
+    // MARK: - Coalescing
+    
+    func test_givenTwoCoalescedDownloads_whenTheDownloadTaskCompletes_thenBothCompletionHandlersReceiveTheSameData() throws {
+        let url = URL(string: "http://test.com/example")!
+        let fileURL = try XCTUnwrap(Bundle(for: type(of: self)).url(forResource: "square", withExtension: "pdf"))
+        let expectedData = try Data(contentsOf: fileURL)
+        
+        XCTAssertFalse(expectedData.isEmpty)
+        
+        let session = StubURLSession()
+        let sut = createSUT(session: session)
+        
+        let downloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskToReturn = downloadTask
+        
+        var firstResult: Result<Data, Error>?
+        sut.scheduleDownload(url: url) { firstResult = $0 }
+        
+        var secondResult: Result<Data, Error>?
+        sut.scheduleDownload(url: url) { secondResult = $0 }
+        
+        XCTAssertEqual(session.events.count, 1)
+        
+        sut.handleFinishedDownloading(forTaskWith: downloadTask.taskIdentifier, to: fileURL)
+        
+        //one read of the file, handed to everybody who coalesced onto the download
+        guard case let .success(firstData) = try XCTUnwrap(firstResult),
+              case let .success(secondData) = try XCTUnwrap(secondResult) else {
+            XCTFail("Expected both callers to receive a success result")
+            return
+        }
+        
+        XCTAssertEqual(firstData, expectedData)
+        XCTAssertEqual(secondData, expectedData)
+    }
+    
+    func test_givenTwoCallersForTheSameURL_whenBothPause_thenTheSharedTaskIsCancelledOnce() {
+        let url = URL(string: "http://test.com/example")!
+        
+        let session = StubURLSession()
+        let sut = createSUT(session: session)
+        
+        let downloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskToReturn = downloadTask
+        
+        let firstDownloadToken = sut.scheduleDownload(url: url) { _ in }
+        let secondDownloadToken = sut.scheduleDownload(url: url) { _ in }
+        
+        sut.pauseDownload(firstDownloadToken)
+        
+        //somebody still wants it, so nothing is cancelled yet
+        XCTAssertEqual(downloadTask.events.count, 1)
+        
+        sut.pauseDownload(secondDownloadToken)
+        
+        //the last interested caller has gone, so the shared task is cancelled exactly once
+        XCTAssertEqual(downloadTask.events.count, 2)
+        
+        guard case .cancelByProducingResumeData = downloadTask.events.last else {
+            XCTFail("Expected the shared download to be cancelled")
+            return
+        }
+    }
+    
+    func test_givenTwoCallersJoinedAPauseInFlight_whenTheResumptionDataLands_thenOnlyOneTaskIsStarted() {
+        let url = URL(string: "http://test.com/example")!
+        
+        let session = StubURLSession()
+        let sut = createSUT(session: session)
+        
+        let downloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskToReturn = downloadTask
+        
+        let firstDownloadToken = sut.scheduleDownload(url: url) { _ in }
+        sut.pauseDownload(firstDownloadToken)
+        
+        guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        let resumedTask = StubURLSessionDownloadTask()
+        session.downloadTaskWithResumeDataToReturn = resumedTask
+        
+        //both scheduled whilst the pause is still in flight, so both join it
+        var secondResults = [Result<Data, Error>]()
+        sut.scheduleDownload(url: url) { secondResults.append($0) }
+        
+        var thirdResults = [Result<Data, Error>]()
+        sut.scheduleDownload(url: url) { thirdResults.append($0) }
+        
+        XCTAssertEqual(session.events.count, 1)
+        
+        resumeDataHandler(Data("resumption".utf8))
+        
+        //one task serves both of them
+        XCTAssertEqual(session.events.count, 2)
+        
+        guard case .downloadTaskWithResumeData = session.events.last else {
+            XCTFail("Expected a resumed download task")
+            return
+        }
+        
+        sut.handleComplete(forTaskWith: resumedTask.taskIdentifier, error: TestError.test)
+        
+        XCTAssertEqual(secondResults.count, 1)
+        XCTAssertEqual(thirdResults.count, 1)
+    }
+    
+    func test_givenARetiredTaskThatFailsAfterTheDownloadWasResumed_whenItCompletes_thenTheResumedDownloadIsUnaffected() {
+        let url = URL(string: "http://test.com/example")!
+        
+        let session = StubURLSession()
+        let sut = createSUT(session: session)
+        
+        let downloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskToReturn = downloadTask
+        
+        let firstDownloadToken = sut.scheduleDownload(url: url) { _ in }
+        sut.pauseDownload(firstDownloadToken)
+        
+        guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        resumeDataHandler(Data("resumption".utf8))
+        
+        let resumedTask = StubURLSessionDownloadTask()
+        session.downloadTaskWithResumeDataToReturn = resumedTask
+        
+        var results = [Result<Data, Error>]()
+        sut.scheduleDownload(url: url) { results.append($0) }
+        
+        /* The retired task winds down with a real error rather than a cancellation, so
+         nothing but the phase stops it being mistaken for the download now running.
+         */
+        sut.handleComplete(forTaskWith: downloadTask.taskIdentifier, error: TestError.test)
+        
+        XCTAssertTrue(results.isEmpty)
+        
+        sut.handleComplete(forTaskWith: resumedTask.taskIdentifier, error: TestError.test)
+        
+        XCTAssertEqual(results.count, 1)
+    }
+    
+    func test_givenADownloadThatIsPausing_whenAMemoryWarningIsReceived_thenAJoinedCallerIsStillAnswered() {
+        let url = URL(string: "http://test.com/example")!
+        
+        let notificationCenter = StubNotificationCenter()
+        notificationCenter.objectToReturn = NSObject()
+        
+        let session = StubURLSession()
+        let sut = createSUT(session: session, notificationCenter: notificationCenter)
+        
+        guard case let .addObserver(_, _, _, notificationBlock) = notificationCenter.events.first else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        let downloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskToReturn = downloadTask
+        
+        let firstDownloadToken = sut.scheduleDownload(url: url) { _ in }
+        sut.pauseDownload(firstDownloadToken)
+        
+        guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        let resumedTask = StubURLSessionDownloadTask()
+        session.downloadTaskWithResumeDataToReturn = resumedTask
+        
+        var results = [Result<Data, Error>]()
+        sut.scheduleDownload(url: url) { results.append($0) }
+        
+        //purging must leave a pause in flight alone or the caller that joined it is stranded
+        notificationBlock(Notification(name: UIApplication.didReceiveMemoryWarningNotification))
+        
+        resumeDataHandler(Data("resumption".utf8))
+        
+        XCTAssertEqual(session.events.count, 2)
+        
+        guard case .downloadTaskWithResumeData = session.events.last else {
+            XCTFail("Expected a resumed download task")
+            return
+        }
+        
+        sut.handleComplete(forTaskWith: resumedTask.taskIdentifier, error: TestError.test)
+        
+        XCTAssertEqual(results.count, 1)
+    }
+    
+    func test_givenAPausedDownloadWithResumptionData_whenTwoCallersScheduleTheSameURL_thenTheResumptionDataIsUsedOnce() {
+        let url = URL(string: "http://test.com/example")!
+        
+        let session = StubURLSession()
+        let sut = createSUT(session: session)
+        
+        let downloadTask = StubURLSessionDownloadTask()
+        session.downloadTaskToReturn = downloadTask
+        
+        let firstDownloadToken = sut.scheduleDownload(url: url) { _ in }
+        sut.pauseDownload(firstDownloadToken)
+        
+        guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        resumeDataHandler(Data("resumption".utf8))
+        
+        session.downloadTaskWithResumeDataToReturn = StubURLSessionDownloadTask()
+        
+        sut.scheduleDownload(url: url) { _ in }
+        sut.scheduleDownload(url: url) { _ in }
+        
+        //the second caller coalesces onto the resumed download rather than starting afresh
+        XCTAssertEqual(session.events.count, 2)
+        
+        guard case .downloadTaskWithResumeData = session.events.last else {
+            XCTFail("Expected the resumption data to be used exactly once")
+            return
+        }
+    }
 }
 
 extension AssetDownloadsSessionTests {
-    func createSUT(urlSessionFactory: URLSessionFactoryType = StubURLSessionFactory(),
+    func createSUT(session: StubURLSession = StubURLSession(),
+                   notificationCenter: NotificationCenterType = StubNotificationCenter()) -> AssetDownloadsSession {
+        let urlSessionFactory = StubURLSessionFactory()
+        urlSessionFactory.sessionToReturn = session
+        
+        return createSUT(urlSessionFactory: urlSessionFactory,
+                         notificationCenter: notificationCenter)
+    }
+    
+    func createSUT(urlSessionFactory: URLSessionFactoryType,
                    notificationCenter: NotificationCenterType = StubNotificationCenter()) -> AssetDownloadsSession {
         AssetDownloadsSession(urlSessionFactory: urlSessionFactory,
                               notificationCenter: notificationCenter)

@@ -19,22 +19,22 @@ extension URLSessionFactoryType {
 }
 
 protocol URLSessionType {
-    func downloadTask(with url: URL, completionHandler: @escaping (URL?, URLResponse?, Error?) -> Void) -> URLSessionDownloadTaskType
-    func downloadTask(withResumeData resumeData: Data, completionHandler: @escaping (URL?, URLResponse?, Error?) -> Void) -> URLSessionDownloadTaskType
+    func downloadTask(with url: URL) -> URLSessionDownloadTaskType
+    func downloadTask(withResumeData resumeData: Data) -> URLSessionDownloadTaskType
 }
 
 extension URLSession: URLSessionType {
-    func downloadTask(with url: URL, completionHandler: @escaping (URL?, URLResponse?, Error?) -> Void) -> URLSessionDownloadTaskType {
-        return downloadTask(with: url, completionHandler: completionHandler) as URLSessionDownloadTask
+    func downloadTask(with url: URL) -> URLSessionDownloadTaskType {
+        return downloadTask(with: url) as URLSessionDownloadTask
     }
     
-    func downloadTask(withResumeData resumeData: Data, completionHandler: @escaping (URL?, URLResponse?, Error?) -> Void) -> URLSessionDownloadTaskType {
-        return downloadTask(withResumeData: resumeData, completionHandler: completionHandler) as URLSessionDownloadTask
+    func downloadTask(withResumeData resumeData: Data) -> URLSessionDownloadTaskType {
+        return downloadTask(withResumeData: resumeData) as URLSessionDownloadTask
     }
 }
 
 protocol URLSessionDownloadTaskType {
-    var progress: Progress { get }
+    var taskIdentifier: Int { get }
     
     func resume()
     func cancel()

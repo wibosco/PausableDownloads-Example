@@ -17,7 +17,7 @@ class StubNotificationCenter: NotificationCenterType {
     
     private(set) var events = [Event]()
     
-    var objectToReturn: NSObjectProtocol!
+    var objectToReturn: NSObjectProtocol! = NSObject()
     
     func addObserver(forName name: NSNotification.Name?,
                      object obj: Any?,
