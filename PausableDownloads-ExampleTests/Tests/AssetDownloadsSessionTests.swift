@@ -64,7 +64,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        let downloadID = sut.scheduleDownload(url: url) { _ in }
+        let downloadID = sut.scheduleDownload(for: url) { _ in }
         
         XCTAssertEqual(session.events.count, 1)
         
@@ -84,7 +84,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         //the purged item took its resumption data with it, so the next schedule starts over
         session.downloadTaskWithResumeDataToReturn = StubURLSessionDownloadTask()
         
-        sut.scheduleDownload(url: url) { _ in }
+        sut.scheduleDownload(for: url) { _ in }
         
         XCTAssertEqual(session.events.count, 2)
         
@@ -110,7 +110,7 @@ class AssetDownloadsSessionTests: XCTestCase {
             return
         }
         
-        sut.scheduleDownload(url: url) { _ in }
+        sut.scheduleDownload(for: url) { _ in }
         
         XCTAssertEqual(downloadTask.events.count, 1)
         
@@ -135,7 +135,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        sut.scheduleDownload(url: url) { _ in }
+        sut.scheduleDownload(for: url) { _ in }
         
         XCTAssertEqual(downloadTask.events.count, 1)
         
@@ -164,8 +164,8 @@ class AssetDownloadsSessionTests: XCTestCase {
         let urlA = URL(string: "http://example.com/resourceA")!
         let urlB = URL(string: "http://example.com/resourceB")!
         
-        sut.scheduleDownload(url: urlA) { _ in }
-        sut.scheduleDownload(url: urlB) { _ in }
+        sut.scheduleDownload(for: urlA) { _ in }
+        sut.scheduleDownload(for: urlB) { _ in }
         
         XCTAssertEqual(downloadTask.events.count, 2)
         
@@ -187,16 +187,16 @@ class AssetDownloadsSessionTests: XCTestCase {
         session.downloadTaskToReturn = downloadTask
         
         var firstResults = [Result<Data, Error>]()
-        sut.scheduleDownload(url: url) { firstResults.append($0) }
+        sut.scheduleDownload(for: url) { firstResults.append($0) }
         
         var secondResults = [Result<Data, Error>]()
-        sut.scheduleDownload(url: url) { secondResults.append($0) }
+        sut.scheduleDownload(for: url) { secondResults.append($0) }
         
         //a second caller coalesces onto the download that's already running
         XCTAssertEqual(session.events.count, 1)
         XCTAssertEqual(downloadTask.events.count, 1)
         
-        sut.handleComplete(forTaskWith: downloadTask.taskIdentifier, error: TestError.test)
+        sut.handleFailedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, error: TestError.test)
         
         XCTAssertEqual(firstResults.count, 1)
         XCTAssertEqual(secondResults.count, 1)
@@ -213,10 +213,10 @@ class AssetDownloadsSessionTests: XCTestCase {
         session.downloadTaskToReturn = downloadTask
         
         var firstResults = [Result<Data, Error>]()
-        let firstDownloadToken = sut.scheduleDownload(url: url) { firstResults.append($0) }
+        let firstDownloadToken = sut.scheduleDownload(for: url) { firstResults.append($0) }
         
         var secondResults = [Result<Data, Error>]()
-        sut.scheduleDownload(url: url) { secondResults.append($0) }
+        sut.scheduleDownload(for: url) { secondResults.append($0) }
         
         sut.pauseDownload(firstDownloadToken)
         
@@ -228,7 +228,7 @@ class AssetDownloadsSessionTests: XCTestCase {
             return
         }
         
-        sut.handleComplete(forTaskWith: downloadTask.taskIdentifier, error: TestError.test)
+        sut.handleFailedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, error: TestError.test)
         
         XCTAssertEqual(secondResults.count, 1)
         XCTAssertTrue(firstResults.isEmpty)
@@ -243,7 +243,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        let downloadID = sut.scheduleDownload(url: url) { _ in }
+        let downloadID = sut.scheduleDownload(for: url) { _ in }
         sut.pauseDownload(downloadID)
         
         XCTAssertEqual(downloadTask.events.count, 2)
@@ -256,7 +256,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         //a server that can't resume hands back no data, so starting over is all that's left
         resumeDataHandler(nil)
         
-        sut.scheduleDownload(url: url) { _ in }
+        sut.scheduleDownload(for: url) { _ in }
         
         XCTAssertEqual(session.events.count, 2)
         
@@ -283,7 +283,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        let downloadID = sut.scheduleDownload(url: url) { _ in }
+        let downloadID = sut.scheduleDownload(for: url) { _ in }
         sut.pauseDownload(downloadID)
         
         guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
@@ -295,7 +295,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         session.downloadTaskWithResumeDataToReturn = resumedDownloadTask
         
         //rescheduling whilst the resumption data is still in flight - the fast swipe back
-        sut.scheduleDownload(url: url) { _ in }
+        sut.scheduleDownload(for: url) { _ in }
         
         XCTAssertEqual(session.events.count, 1)
         
@@ -328,7 +328,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         session.downloadTaskToReturn = downloadTask
         session.downloadTaskWithResumeDataToReturn = StubURLSessionDownloadTask()
         
-        let firstDownloadID = sut.scheduleDownload(url: url) { _ in }
+        let firstDownloadID = sut.scheduleDownload(for: url) { _ in }
         sut.pauseDownload(firstDownloadID)
         
         guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
@@ -337,7 +337,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         }
         
         //scheduled whilst the pause is still in flight, so it joins rather than starting a task
-        let joinedDownloadToken = sut.scheduleDownload(url: url) { _ in }
+        let joinedDownloadToken = sut.scheduleDownload(for: url) { _ in }
         
         XCTAssertEqual(session.events.count, 1)
         
@@ -360,7 +360,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         session.downloadTaskToReturn = downloadTask
         
         var results = [Result<Data, Error>]()
-        let downloadID = sut.scheduleDownload(url: url) { results.append($0) }
+        let downloadID = sut.scheduleDownload(for: url) { results.append($0) }
         
         guard case .downloadTask = session.events.first else {
             XCTFail("Unexpected event")
@@ -370,13 +370,14 @@ class AssetDownloadsSessionTests: XCTestCase {
         sut.pauseDownload(downloadID)
         
         //pausing cancels the underlying task, which reports back as a cancellation error
-        sut.handleComplete(forTaskWith: downloadTask.taskIdentifier, error: URLError(.cancelled))
+        sut.handleFailedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, error: URLError(.cancelled))
         
         XCTAssertTrue(results.isEmpty)
     }
     
-    func test_givenCompletedDownload_whenScheduleDownloadIsCalledForTheSameURL_thenANewDownloadTaskIsCreated() {
+    func test_givenCompletedDownload_whenScheduleDownloadIsCalledForTheSameURL_thenANewDownloadTaskIsCreated() throws {
         let url = URL(string: "http://test.com/example")!
+        let fileURL = try XCTUnwrap(Bundle(for: type(of: self)).url(forResource: "square", withExtension: "pdf"))
         
         let session = StubURLSession()
         let sut = createSUT(session: session)
@@ -385,7 +386,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
-        sut.scheduleDownload(url: url) { _ in }
+        sut.scheduleDownload(for: url) { _ in }
         
         XCTAssertEqual(session.events.count, 1)
         
@@ -394,14 +395,14 @@ class AssetDownloadsSessionTests: XCTestCase {
             return
         }
         
-        sut.handleComplete(forTaskWith: downloadTask.taskIdentifier, error: nil)
+        sut.handleFinishedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, to: fileURL)
         
-        sut.scheduleDownload(url: url) { _ in }
+        sut.scheduleDownload(for: url) { _ in }
         
         XCTAssertEqual(session.events.count, 2)
     }
     
-    func test_givenScheduledDownload_whenTheDownloadTaskCompletes_thenTheCompletionHandlerIsCalled() {
+    func test_givenScheduledDownload_whenTheDownloadTaskFails_thenTheCompletionHandlerIsCalled() {
         let url = URL(string: "http://test.com/example")!
         
         let session = StubURLSession()
@@ -412,7 +413,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         session.downloadTaskToReturn = downloadTask
         
         let completionExpectation = expectation(description: "completionExpectation")
-        sut.scheduleDownload(url: url) { _ in
+        sut.scheduleDownload(for: url) { _ in
             completionExpectation.fulfill()
         }
         
@@ -421,7 +422,7 @@ class AssetDownloadsSessionTests: XCTestCase {
             return
         }
         
-        sut.handleComplete(forTaskWith: downloadTask.taskIdentifier, error: nil)
+        sut.handleFailedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, error: TestError.test)
         
         waitForExpectations(timeout: 3, handler: nil)
     }
@@ -436,7 +437,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        let downloadID = sut.scheduleDownload(url: url) { _ in }
+        let downloadID = sut.scheduleDownload(for: url) { _ in }
         sut.pauseDownload(downloadID)
         
         guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
@@ -449,7 +450,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let resumedDownloadTask = StubURLSessionDownloadTask()
         session.downloadTaskWithResumeDataToReturn = resumedDownloadTask
         
-        sut.scheduleDownload(url: url) { _ in }
+        sut.scheduleDownload(for: url) { _ in }
         
         XCTAssertEqual(session.events.count, 2)
         
@@ -483,7 +484,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         
         var receivedResult: Result<Data, Error>?
         let completionExpectation = expectation(description: "completionExpectation")
-        sut.scheduleDownload(url: url) { (result) in
+        sut.scheduleDownload(for: url) { (result) in
             receivedResult = result
             completionExpectation.fulfill()
         }
@@ -493,8 +494,7 @@ class AssetDownloadsSessionTests: XCTestCase {
             return
         }
         
-        sut.handleFinishedDownloading(forTaskWith: downloadTask.taskIdentifier, to: fileURL)
-        sut.handleComplete(forTaskWith: downloadTask.taskIdentifier, error: nil)
+        sut.handleFinishedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, to: fileURL)
         
         waitForExpectations(timeout: 3, handler: nil)
         
@@ -518,7 +518,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         
         var receivedResult: Result<Data, Error>?
         let completionExpectation = expectation(description: "completionExpectation")
-        sut.scheduleDownload(url: url) { (result) in
+        sut.scheduleDownload(for: url) { (result) in
             receivedResult = result
             completionExpectation.fulfill()
         }
@@ -528,7 +528,7 @@ class AssetDownloadsSessionTests: XCTestCase {
             return
         }
         
-        sut.handleComplete(forTaskWith: downloadTask.taskIdentifier, error: TestError.test)
+        sut.handleFailedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, error: TestError.test)
         
         waitForExpectations(timeout: 3, handler: nil)
         
@@ -554,7 +554,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         
         var receivedResult: Result<Data, Error>?
         let completionExpectation = expectation(description: "completionExpectation")
-        sut.scheduleDownload(url: url) { (result) in
+        sut.scheduleDownload(for: url) { (result) in
             receivedResult = result
             completionExpectation.fulfill()
         }
@@ -564,8 +564,7 @@ class AssetDownloadsSessionTests: XCTestCase {
             return
         }
         
-        sut.handleFinishedDownloading(forTaskWith: downloadTask.taskIdentifier, to: unreadableFileURL)
-        sut.handleComplete(forTaskWith: downloadTask.taskIdentifier, error: nil)
+        sut.handleFinishedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, to: unreadableFileURL)
         
         waitForExpectations(timeout: 3, handler: nil)
         
@@ -586,7 +585,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         retiredDownloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = retiredDownloadTask
         
-        let downloadID = sut.scheduleDownload(url: url) { _ in }
+        let downloadID = sut.scheduleDownload(for: url) { _ in }
         sut.pauseDownload(downloadID)
         
         guard case let .cancelByProducingResumeData(resumeDataHandler) = retiredDownloadTask.events.last else {
@@ -601,14 +600,14 @@ class AssetDownloadsSessionTests: XCTestCase {
         session.downloadTaskWithResumeDataToReturn = resumedDownloadTask
         
         var results = [Result<Data, Error>]()
-        sut.scheduleDownload(url: url) { results.append($0) }
+        sut.scheduleDownload(for: url) { results.append($0) }
         
         //the task the pause retired winds down late and must not be mistaken for this download
-        sut.handleComplete(forTaskWith: retiredDownloadTask.taskIdentifier, error: URLError(.cancelled))
+        sut.handleFailedDownloading(for: url, taskIdentifier: retiredDownloadTask.taskIdentifier, error: URLError(.cancelled))
         
         XCTAssertTrue(results.isEmpty)
         
-        sut.handleComplete(forTaskWith: resumedDownloadTask.taskIdentifier, error: nil)
+        sut.handleFailedDownloading(for: url, taskIdentifier: resumedDownloadTask.taskIdentifier, error: TestError.test)
         
         XCTAssertEqual(results.count, 1)
     }
@@ -624,15 +623,15 @@ class AssetDownloadsSessionTests: XCTestCase {
         session.downloadTaskToReturn = downloadTask
         
         var results = [Result<Data, Error>]()
-        sut.scheduleDownload(url: url) { results.append($0) }
+        sut.scheduleDownload(for: url) { results.append($0) }
         
         let unknownURL = URL(string: "http://test.com/unknown")!
         let unknownTaskIdentifier = 2
         
         sut.handleProgress(for: unknownURL, totalBytesWritten: 50, expectedTotalBytes: 100)
         sut.handleResumption(for: unknownURL, fileOffset: 50, expectedTotalBytes: 100)
-        sut.handleFinishedDownloading(forTaskWith: unknownTaskIdentifier, to: URL(fileURLWithPath: "/dev/null"))
-        sut.handleComplete(forTaskWith: unknownTaskIdentifier, error: nil)
+        sut.handleFinishedDownloading(for: unknownURL, taskIdentifier: unknownTaskIdentifier, to: URL(fileURLWithPath: "/dev/null"))
+        sut.handleFailedDownloading(for: unknownURL, taskIdentifier: unknownTaskIdentifier, error: TestError.test)
         
         XCTAssertTrue(results.isEmpty)
     }
@@ -648,7 +647,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        let downloadID = sut.scheduleDownload(url: url) { _ in }
+        let downloadID = sut.scheduleDownload(for: url) { _ in }
         sut.pauseDownload(downloadID)
         
         XCTAssertEqual(downloadTask.events.count, 2)
@@ -691,14 +690,14 @@ class AssetDownloadsSessionTests: XCTestCase {
         session.downloadTaskToReturn = downloadTask
         
         var firstResult: Result<Data, Error>?
-        sut.scheduleDownload(url: url) { firstResult = $0 }
+        sut.scheduleDownload(for: url) { firstResult = $0 }
         
         var secondResult: Result<Data, Error>?
-        sut.scheduleDownload(url: url) { secondResult = $0 }
+        sut.scheduleDownload(for: url) { secondResult = $0 }
         
         XCTAssertEqual(session.events.count, 1)
         
-        sut.handleFinishedDownloading(forTaskWith: downloadTask.taskIdentifier, to: fileURL)
+        sut.handleFinishedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, to: fileURL)
         
         //one read of the file, handed to everybody who coalesced onto the download
         guard case let .success(firstData) = try XCTUnwrap(firstResult),
@@ -720,8 +719,8 @@ class AssetDownloadsSessionTests: XCTestCase {
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        let firstDownloadToken = sut.scheduleDownload(url: url) { _ in }
-        let secondDownloadToken = sut.scheduleDownload(url: url) { _ in }
+        let firstDownloadToken = sut.scheduleDownload(for: url) { _ in }
+        let secondDownloadToken = sut.scheduleDownload(for: url) { _ in }
         
         sut.pauseDownload(firstDownloadToken)
         
@@ -748,7 +747,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        let firstDownloadToken = sut.scheduleDownload(url: url) { _ in }
+        let firstDownloadToken = sut.scheduleDownload(for: url) { _ in }
         sut.pauseDownload(firstDownloadToken)
         
         guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
@@ -762,10 +761,10 @@ class AssetDownloadsSessionTests: XCTestCase {
         
         //both scheduled whilst the pause is still in flight, so both join it
         var secondResults = [Result<Data, Error>]()
-        sut.scheduleDownload(url: url) { secondResults.append($0) }
+        sut.scheduleDownload(for: url) { secondResults.append($0) }
         
         var thirdResults = [Result<Data, Error>]()
-        sut.scheduleDownload(url: url) { thirdResults.append($0) }
+        sut.scheduleDownload(for: url) { thirdResults.append($0) }
         
         XCTAssertEqual(session.events.count, 1)
         
@@ -779,7 +778,7 @@ class AssetDownloadsSessionTests: XCTestCase {
             return
         }
         
-        sut.handleComplete(forTaskWith: resumedTask.taskIdentifier, error: TestError.test)
+        sut.handleFailedDownloading(for: url, taskIdentifier: resumedTask.taskIdentifier, error: TestError.test)
         
         XCTAssertEqual(secondResults.count, 1)
         XCTAssertEqual(thirdResults.count, 1)
@@ -795,7 +794,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
-        let firstDownloadToken = sut.scheduleDownload(url: url) { _ in }
+        let firstDownloadToken = sut.scheduleDownload(for: url) { _ in }
         sut.pauseDownload(firstDownloadToken)
         
         guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
@@ -810,16 +809,16 @@ class AssetDownloadsSessionTests: XCTestCase {
         session.downloadTaskWithResumeDataToReturn = resumedTask
         
         var results = [Result<Data, Error>]()
-        sut.scheduleDownload(url: url) { results.append($0) }
+        sut.scheduleDownload(for: url) { results.append($0) }
         
         /* The retired task winds down with a real error rather than a cancellation, so
          nothing but the phase stops it being mistaken for the download now running.
          */
-        sut.handleComplete(forTaskWith: downloadTask.taskIdentifier, error: TestError.test)
+        sut.handleFailedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, error: TestError.test)
         
         XCTAssertTrue(results.isEmpty)
         
-        sut.handleComplete(forTaskWith: resumedTask.taskIdentifier, error: TestError.test)
+        sut.handleFailedDownloading(for: url, taskIdentifier: resumedTask.taskIdentifier, error: TestError.test)
         
         XCTAssertEqual(results.count, 1)
     }
@@ -840,7 +839,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        let firstDownloadToken = sut.scheduleDownload(url: url) { _ in }
+        let firstDownloadToken = sut.scheduleDownload(for: url) { _ in }
         sut.pauseDownload(firstDownloadToken)
         
         guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
@@ -853,7 +852,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         session.downloadTaskWithResumeDataToReturn = resumedTask
         
         var results = [Result<Data, Error>]()
-        sut.scheduleDownload(url: url) { results.append($0) }
+        sut.scheduleDownload(for: url) { results.append($0) }
         
         //purging must leave a pause in flight alone or the caller that joined it is stranded
         memoryPressureHandler()
@@ -867,7 +866,7 @@ class AssetDownloadsSessionTests: XCTestCase {
             return
         }
         
-        sut.handleComplete(forTaskWith: resumedTask.taskIdentifier, error: TestError.test)
+        sut.handleFailedDownloading(for: url, taskIdentifier: resumedTask.taskIdentifier, error: TestError.test)
         
         XCTAssertEqual(results.count, 1)
     }
@@ -881,7 +880,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        let firstDownloadToken = sut.scheduleDownload(url: url) { _ in }
+        let firstDownloadToken = sut.scheduleDownload(for: url) { _ in }
         sut.pauseDownload(firstDownloadToken)
         
         guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
@@ -893,8 +892,8 @@ class AssetDownloadsSessionTests: XCTestCase {
         
         session.downloadTaskWithResumeDataToReturn = StubURLSessionDownloadTask()
         
-        sut.scheduleDownload(url: url) { _ in }
-        sut.scheduleDownload(url: url) { _ in }
+        sut.scheduleDownload(for: url) { _ in }
+        sut.scheduleDownload(for: url) { _ in }
         
         //the second caller coalesces onto the resumed download rather than starting afresh
         XCTAssertEqual(session.events.count, 2)

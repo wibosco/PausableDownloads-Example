@@ -20,7 +20,7 @@ final class StubAssetDownloadsSession: AssetDownloadsSession {
     
     var tokenToReturn: DownloadToken!
     
-    func scheduleDownload(url: URL,
+    func scheduleDownload(for url: URL,
                           completionHandler: @escaping DownloadCompletionHandler) -> DownloadToken {
         events.append(.scheduleDownload(url, completionHandler))
         

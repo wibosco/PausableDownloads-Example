@@ -78,7 +78,7 @@ final class DefaultAssetService: AssetService {
                                    callbackQueue: DispatchQueue,
                                    completionHandler: @escaping ((_ result: Result<LoadImageResult, Error>) -> ())) -> DownloadToken {
         
-        session.scheduleDownload(url: imageDomainModel.url) { (result) in
+        session.scheduleDownload(for: imageDomainModel.url) { (result) in
             switch result {
             case .success(let data):
                 guard let image = UIImage(data: data) else {
