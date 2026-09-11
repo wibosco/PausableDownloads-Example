@@ -41,6 +41,7 @@
 		43A1000030600012009529DF /* ImageGalleryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A1000030600002009529DF /* ImageGalleryViewModel.swift */; };
 		43A1000030600013009529DF /* ImageGalleryViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A1000030600003009529DF /* ImageGalleryViewModelTests.swift */; };
 		43A1000030600014009529DF /* StubImageGalleryViewModelDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A1000030600004009529DF /* StubImageGalleryViewModelDelegate.swift */; };
+		43F8C812305418EA00150C94 /* StubAssetDownloadsSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F8C811305418EA00150C94 /* StubAssetDownloadsSession.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -93,6 +94,7 @@
 		43A1000030600003009529DF /* ImageGalleryViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageGalleryViewModelTests.swift; sourceTree = "<group>"; };
 		43A1000030600004009529DF /* StubImageGalleryViewModelDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubImageGalleryViewModelDelegate.swift; sourceTree = "<group>"; };
 		43DF70D53051B477004E9EEA /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
+		43F8C811305418EA00150C94 /* StubAssetDownloadsSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubAssetDownloadsSession.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -295,6 +297,7 @@
 				4399D38C3050B4DB009D2CEB /* TestError.swift */,
 				437C0D403051F9F3009529DF /* StubImagesService.swift */,
 				437C0D423051FA65009529DF /* StubAssetService.swift */,
+				43F8C811305418EA00150C94 /* StubAssetDownloadsSession.swift */,
 			);
 			path = Doubles;
 			sourceTree = "<group>";
@@ -455,6 +458,7 @@
 				437C0D413051F9F3009529DF /* StubImagesService.swift in Sources */,
 				4399D3923050B4DB009D2CEB /* StubURLSessionFactory.swift in Sources */,
 				4399D3933050B4DB009D2CEB /* TestError.swift in Sources */,
+				43F8C812305418EA00150C94 /* StubAssetDownloadsSession.swift in Sources */,
 				4399D3943050B4DB009D2CEB /* StubNotificationCenter.swift in Sources */,
 				437C0D6B3051EDB0009529DF /* StubImageViewerViewModelDelegate.swift in Sources */,
 				43A1000030600014009529DF /* StubImageGalleryViewModelDelegate.swift in Sources */,

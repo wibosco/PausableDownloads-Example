@@ -933,7 +933,7 @@ class AssetDownloadsSessionTests: XCTestCase {
 
 extension AssetDownloadsSessionTests {
     func createSUT(session: StubURLSession = StubURLSession(),
-                   notificationCenter: NotificationCenterType = StubNotificationCenter()) -> AssetDownloadsSession {
+                   notificationCenter: NotificationCenterType = StubNotificationCenter()) -> DefaultAssetDownloadsSession {
         let urlSessionFactory = StubURLSessionFactory()
         urlSessionFactory.sessionToReturn = session
         
@@ -942,8 +942,8 @@ extension AssetDownloadsSessionTests {
     }
     
     func createSUT(urlSessionFactory: URLSessionFactoryType,
-                   notificationCenter: NotificationCenterType = StubNotificationCenter()) -> AssetDownloadsSession {
-        AssetDownloadsSession(urlSessionFactory: urlSessionFactory,
-                              notificationCenter: notificationCenter)
+                   notificationCenter: NotificationCenterType = StubNotificationCenter()) -> DefaultAssetDownloadsSession {
+        DefaultAssetDownloadsSession(urlSessionFactory: urlSessionFactory,
+                                     notificationCenter: notificationCenter)
     }
 }

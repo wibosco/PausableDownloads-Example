@@ -35,7 +35,14 @@ struct DownloadToken: Hashable {
     }
 }
 
-final class AssetDownloadsSession: NSObject {
+protocol AssetDownloadsSession {
+    @discardableResult
+    func scheduleDownload(url: URL,
+                          completionHandler: @escaping DownloadCompletionHandler) -> DownloadToken
+    func pauseDownload(_ token: DownloadToken)
+}
+
+final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
     private struct Download {
         var handlers: [DownloadToken: DownloadCompletionHandler]
         var stage: DownloadStage
@@ -63,7 +70,7 @@ final class AssetDownloadsSession: NSObject {
     
     // MARK: - Singleton
     
-    static let shared = AssetDownloadsSession()
+    static let shared = DefaultAssetDownloadsSession()
     
     // MARK: - Init
     
@@ -258,11 +265,8 @@ final class AssetDownloadsSession: NSObject {
                           handlers: download.handlers)
         }
     }
-}
-
-extension AssetDownloadsSession {
     
-    // MARK: - Handling
+    // MARK: - DelegateHandling
     
     func handleProgress(for url: URL,
                         totalBytesWritten: Int64,
@@ -329,7 +333,7 @@ extension AssetDownloadsSession {
     }
 }
 
-extension AssetDownloadsSession: URLSessionDownloadDelegate {
+extension DefaultAssetDownloadsSession: URLSessionDownloadDelegate {
     
     // MARK: - URLSessionDownloadDelegate
     

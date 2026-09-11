@@ -26,8 +26,16 @@ protocol AssetService {
 }
 
 final class DefaultAssetService: AssetService {
-    private let session = AssetDownloadsSession.shared
-    private let fileManager = FileManager.default
+    private let session: AssetDownloadsSession
+    private let fileManager: FileManager
+    
+    // MARK: - Init
+    
+    init(session: AssetDownloadsSession = DefaultAssetDownloadsSession.shared,
+         fileManager: FileManager = FileManager.default) {
+        self.session = session
+        self.fileManager = fileManager
+    }
     
     // MARK: - Load
     
