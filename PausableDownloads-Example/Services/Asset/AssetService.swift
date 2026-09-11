@@ -15,9 +15,6 @@ struct LoadImageResult: Equatable {
 }
 
 protocol AssetService {
-    /* Returns the id of the download it started, or nil when the asset was already
-     cached locally and there's nothing to pause.
-     */
     @discardableResult
     func loadImage(_ imageDomainModel: ImageDomainModel,
                    callbackQueue: DispatchQueue,
@@ -92,11 +89,6 @@ final class DefaultAssetService: AssetService {
                 }
                 
                 do {
-                    /* Callers that coalesced onto one download each write these same bytes to
-                     the same path. The writes are atomic, sequential and identical, so the
-                     redundancy costs a little disk churn and nothing else - deduplicating it
-                     would mean moving caching down into the download session.
-                     */
                     try data.write(to: imageDomainModel.cachedLocalAssetURL(), options: .atomic)
                 } catch let error {
                     callbackQueue.async {

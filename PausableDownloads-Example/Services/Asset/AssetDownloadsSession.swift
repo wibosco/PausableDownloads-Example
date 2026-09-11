@@ -6,18 +6,8 @@
 //  Copyright © 2019 William Boles. All rights reserved.
 //
 
-import UIKit
+import Foundation
 import os
-
-protocol NotificationCenterType {
-    @discardableResult
-    func addObserver(forName name: NSNotification.Name?,
-                     object obj: Any?,
-                     queue: OperationQueue?,
-                     using block: @escaping (Notification) -> Void) -> NSObjectProtocol
-}
-
-extension NotificationCenter: NotificationCenterType { }
 
 typealias DownloadCompletionHandler = ((_ result: Result<Data, Error>) -> ())
 
@@ -67,6 +57,7 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
     private let queue = DispatchQueue(label: "com.williamboles.downloadssession")
     
     private var session: URLSessionType!
+    private let memoryPressureMonitor: MemoryPressureMonitor
     
     // MARK: - Singleton
     
@@ -75,11 +66,16 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
     // MARK: - Init
     
     init(urlSessionFactory: URLSessionFactoryType = URLSessionFactory(),
-         notificationCenter: NotificationCenterType = NotificationCenter.default) {
+         memoryPressureMonitor: MemoryPressureMonitor = DefaultMemoryPressureMonitor()) {
+        self.memoryPressureMonitor = memoryPressureMonitor
+        
         super.init()
         
         self.session = urlSessionFactory.defaultSession(delegate: self)
-        registerForNotifications(on: notificationCenter)
+        
+        memoryPressureMonitor.startMonitoring { [weak self] in
+            self?.purgePausedDownloads()
+        }
     }
     
     // MARK: - State
@@ -106,24 +102,12 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
         }.map { (url: $0.key, download: $0.value) }
     }
     
-    // MARK: - Notification
-    
-    private func registerForNotifications(on notificationCenter: NotificationCenterType) {
-        notificationCenter.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification,
-                                       object: nil,
-                                       queue: .main) { [weak self] _ in
-            self?.purgePausedDownloads()
-        }
-    }
+    // MARK: - MemoryPressure
     
     private func purgePausedDownloads() {
         sync {
-            os_log(.info, "Purging paused items")
+            os_log(.info, "Purging paused items under memory pressure")
             
-            //Only a paused download occupies memory without anybody waiting on it. Dropping
-            //one that's still pausing would strand whoever joined it and lose the record of a
-            //cancel we've already issued, so the next schedule would start a second task for a
-            //URL that already has one winding down.
             downloads = downloads.filter { !$0.value.stage.isPaused }
         }
     }

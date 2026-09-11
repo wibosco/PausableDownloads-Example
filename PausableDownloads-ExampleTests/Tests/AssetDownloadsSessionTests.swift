@@ -33,36 +33,30 @@ class AssetDownloadsSessionTests: XCTestCase {
         XCTAssertNil(queue)
     }
     
-    // MARK: Notification
+    // MARK: MemoryPressure
     
-    func test_givenNotificationCenter_whenInitialised_thenObserverIsAddedForMemoryWarningOnMainQueue() {
-        let notificationCenter = StubNotificationCenter()
-        notificationCenter.objectToReturn = NSObject()
+    func test_givenMemoryPressureMonitor_whenInitialised_thenMonitoringIsStarted() {
+        let memoryPressureMonitor = StubMemoryPressureMonitor()
         
-        _ = createSUT(notificationCenter: notificationCenter)
+        _ = createSUT(memoryPressureMonitor: memoryPressureMonitor)
         
-        XCTAssertEqual(notificationCenter.events.count, 1)
+        XCTAssertEqual(memoryPressureMonitor.events.count, 1)
         
-        guard case let .addObserver(name, object, queue, _) = notificationCenter.events.first else {
+        guard case .startMonitoring = memoryPressureMonitor.events.first else {
             XCTFail("Unexpected event")
             return
         }
-        
-        XCTAssertEqual(name, UIApplication.didReceiveMemoryWarningNotification)
-        XCTAssertNil(object)
-        XCTAssertTrue(queue === OperationQueue.main)
     }
     
-    func test_givenPausedDownload_whenMemoryWarningNotificationIsReceived_thenTheDownloadIsDiscarded() {
+    func test_givenPausedDownload_whenMemoryPressureIsReceived_thenTheDownloadIsDiscarded() {
         let url = URL(string: "http://test.com/example")!
         
-        let notificationCenter = StubNotificationCenter()
-        notificationCenter.objectToReturn = NSObject()
+        let memoryPressureMonitor = StubMemoryPressureMonitor()
         
         let session = StubURLSession()
-        let sut = createSUT(session: session, notificationCenter: notificationCenter)
+        let sut = createSUT(session: session, memoryPressureMonitor: memoryPressureMonitor)
         
-        guard case let .addObserver(_, _, _, notificationBlock) = notificationCenter.events.first else {
+        guard case let .startMonitoring(memoryPressureHandler) = memoryPressureMonitor.events.first else {
             XCTFail("Unexpected event")
             return
         }
@@ -85,8 +79,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         
         resumeDataHandler(Data("resumption".utf8))
         
-        let notification = Notification(name: UIApplication.didReceiveMemoryWarningNotification)
-        notificationBlock(notification)
+        memoryPressureHandler()
         
         //the purged item took its resumption data with it, so the next schedule starts over
         session.downloadTaskWithResumeDataToReturn = StubURLSessionDownloadTask()
@@ -101,19 +94,18 @@ class AssetDownloadsSessionTests: XCTestCase {
         }
     }
     
-    func test_givenActiveDownload_whenMemoryWarningNotificationIsReceived_thenTheDownloadTaskIsNotCancelled() {
+    func test_givenActiveDownload_whenMemoryPressureIsReceived_thenTheDownloadTaskIsNotCancelled() {
         let url = URL(string: "http://test.com/example")!
         
-        let notificationCenter = StubNotificationCenter()
-        notificationCenter.objectToReturn = NSObject()
+        let memoryPressureMonitor = StubMemoryPressureMonitor()
         
         let session = StubURLSession()
-        let sut = createSUT(session: session, notificationCenter: notificationCenter)
+        let sut = createSUT(session: session, memoryPressureMonitor: memoryPressureMonitor)
         
         let downloadTask = StubURLSessionDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        guard case let .addObserver(_, _, _, notificationBlock) = notificationCenter.events.first else {
+        guard case let .startMonitoring(memoryPressureHandler) = memoryPressureMonitor.events.first else {
             XCTFail("Unexpected event")
             return
         }
@@ -122,8 +114,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         
         XCTAssertEqual(downloadTask.events.count, 1)
         
-        let notification = Notification(name: UIApplication.didReceiveMemoryWarningNotification)
-        notificationBlock(notification)
+        memoryPressureHandler()
         
         XCTAssertEqual(downloadTask.events.count, 1)
         
@@ -833,16 +824,15 @@ class AssetDownloadsSessionTests: XCTestCase {
         XCTAssertEqual(results.count, 1)
     }
     
-    func test_givenADownloadThatIsPausing_whenAMemoryWarningIsReceived_thenAJoinedCallerIsStillAnswered() {
+    func test_givenADownloadThatIsPausing_whenMemoryPressureIsReceived_thenAJoinedCallerIsStillAnswered() {
         let url = URL(string: "http://test.com/example")!
         
-        let notificationCenter = StubNotificationCenter()
-        notificationCenter.objectToReturn = NSObject()
+        let memoryPressureMonitor = StubMemoryPressureMonitor()
         
         let session = StubURLSession()
-        let sut = createSUT(session: session, notificationCenter: notificationCenter)
+        let sut = createSUT(session: session, memoryPressureMonitor: memoryPressureMonitor)
         
-        guard case let .addObserver(_, _, _, notificationBlock) = notificationCenter.events.first else {
+        guard case let .startMonitoring(memoryPressureHandler) = memoryPressureMonitor.events.first else {
             XCTFail("Unexpected event")
             return
         }
@@ -866,7 +856,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         sut.scheduleDownload(url: url) { results.append($0) }
         
         //purging must leave a pause in flight alone or the caller that joined it is stranded
-        notificationBlock(Notification(name: UIApplication.didReceiveMemoryWarningNotification))
+        memoryPressureHandler()
         
         resumeDataHandler(Data("resumption".utf8))
         
@@ -918,17 +908,17 @@ class AssetDownloadsSessionTests: XCTestCase {
 
 extension AssetDownloadsSessionTests {
     func createSUT(session: StubURLSession = StubURLSession(),
-                   notificationCenter: NotificationCenterType = StubNotificationCenter()) -> DefaultAssetDownloadsSession {
+                   memoryPressureMonitor: MemoryPressureMonitor = StubMemoryPressureMonitor()) -> DefaultAssetDownloadsSession {
         let urlSessionFactory = StubURLSessionFactory()
         urlSessionFactory.sessionToReturn = session
         
         return createSUT(urlSessionFactory: urlSessionFactory,
-                         notificationCenter: notificationCenter)
+                         memoryPressureMonitor: memoryPressureMonitor)
     }
     
     func createSUT(urlSessionFactory: URLSessionFactoryType,
-                   notificationCenter: NotificationCenterType = StubNotificationCenter()) -> DefaultAssetDownloadsSession {
+                   memoryPressureMonitor: MemoryPressureMonitor = StubMemoryPressureMonitor()) -> DefaultAssetDownloadsSession {
         DefaultAssetDownloadsSession(urlSessionFactory: urlSessionFactory,
-                                     notificationCenter: notificationCenter)
+                                     memoryPressureMonitor: memoryPressureMonitor)
     }
 }
