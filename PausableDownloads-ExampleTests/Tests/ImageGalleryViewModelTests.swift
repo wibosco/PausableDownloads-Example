@@ -145,20 +145,26 @@ final class ImageGalleryViewModelTests: XCTestCase {
     func test_givenLoadedImages_whenMoveToIsCalled_thenTheOutgoingAssetIsPausedAndTheIncomingOneIsLoaded() {
         let assetService = StubAssetService()
         
+        let downloadTokenForImageA = DownloadToken(url: imageA.url)
+        assetService.downloadTokenToReturn = downloadTokenForImageA
+        
         let sut = createLoadedSUT(assetService: assetService)
+        
+        //the token the next load hands back, so the paused one is identifiable
+        assetService.downloadTokenToReturn = DownloadToken(url: imageB.url)
         
         sut.moveTo(index: 1)
         
         XCTAssertEqual(sut.currentIndex, 1)
         XCTAssertEqual(assetService.events.count, 3)
         
-        guard case let .cancelLoadingImage(pausedDownloadID) = assetService.events[1] else {
+        guard case let .cancelLoadingImage(pausedDownloadToken) = assetService.events[1] else {
             XCTFail("Unexpected event")
             return
         }
         
         //the download issued for imageA, which is the page being swiped away from
-        XCTAssertEqual(pausedDownloadID, assetService.issuedDownloadIDs[0])
+        XCTAssertEqual(pausedDownloadToken, downloadTokenForImageA)
         
         guard case let .loadImage(loadedImage, _, _) = assetService.events.last else {
             XCTFail("Unexpected event")
@@ -171,21 +177,29 @@ final class ImageGalleryViewModelTests: XCTestCase {
     func test_givenAPausedImage_whenMovedBackTo_thenItsAssetIsLoadedAgain() {
         let assetService = StubAssetService()
         
+        assetService.downloadTokenToReturn = DownloadToken(url: imageA.url)
+        
         let sut = createLoadedSUT(assetService: assetService)
         
+        let downloadTokenForImageB = DownloadToken(url: imageB.url)
+        assetService.downloadTokenToReturn = downloadTokenForImageB
+        
         sut.moveTo(index: 1)
+        
+        assetService.downloadTokenToReturn = DownloadToken(url: imageA.url)
+        
         sut.moveTo(index: 0)
         
         XCTAssertEqual(sut.currentIndex, 0)
         XCTAssertEqual(assetService.events.count, 5)
         
-        guard case let .cancelLoadingImage(pausedDownloadID) = assetService.events[3] else {
+        guard case let .cancelLoadingImage(pausedDownloadToken) = assetService.events[3] else {
             XCTFail("Unexpected event")
             return
         }
         
         //the download issued for imageB, which is the page being swiped away from
-        XCTAssertEqual(pausedDownloadID, assetService.issuedDownloadIDs[1])
+        XCTAssertEqual(pausedDownloadToken, downloadTokenForImageB)
         
         /* Rescheduling the same URL is what hands the paused download back to the
          session to resume rather than restart.

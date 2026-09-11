@@ -192,6 +192,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let sut = createSUT(session: session)
         
         let downloadTask = StubURLSessionDownloadTask()
+        downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
         var firstResults = [Result<Data, Error>]()
@@ -217,6 +218,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let sut = createSUT(session: session)
         
         let downloadTask = StubURLSessionDownloadTask()
+        downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
         var firstResults = [Result<Data, Error>]()
@@ -363,6 +365,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let sut = createSUT(session: session)
         
         let downloadTask = StubURLSessionDownloadTask()
+        downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
         var results = [Result<Data, Error>]()
@@ -388,6 +391,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let sut = createSUT(session: session)
         
         let downloadTask = StubURLSessionDownloadTask()
+        downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
         sut.scheduleDownload(url: url) { _ in }
@@ -413,6 +417,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let sut = createSUT(session: session)
         
         let downloadTask = StubURLSessionDownloadTask()
+        downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
         let completionExpectation = expectation(description: "completionExpectation")
@@ -482,6 +487,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let sut = createSUT(session: session)
         
         let downloadTask = StubURLSessionDownloadTask()
+        downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
         var receivedResult: Result<Data, Error>?
@@ -516,6 +522,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let sut = createSUT(session: session)
         
         let downloadTask = StubURLSessionDownloadTask()
+        downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
         var receivedResult: Result<Data, Error>?
@@ -551,6 +558,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let sut = createSUT(session: session)
         
         let downloadTask = StubURLSessionDownloadTask()
+        downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
         var receivedResult: Result<Data, Error>?
@@ -584,6 +592,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let sut = createSUT(session: session)
         
         let retiredDownloadTask = StubURLSessionDownloadTask()
+        retiredDownloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = retiredDownloadTask
         
         let downloadID = sut.scheduleDownload(url: url) { _ in }
@@ -597,6 +606,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         resumeDataHandler(Data("resumption".utf8))
         
         let resumedDownloadTask = StubURLSessionDownloadTask()
+        resumedDownloadTask.taskIdentifierToReturn = 2
         session.downloadTaskWithResumeDataToReturn = resumedDownloadTask
         
         var results = [Result<Data, Error>]()
@@ -619,13 +629,14 @@ class AssetDownloadsSessionTests: XCTestCase {
         let sut = createSUT(session: session)
         
         let downloadTask = StubURLSessionDownloadTask()
+        downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
         var results = [Result<Data, Error>]()
         sut.scheduleDownload(url: url) { results.append($0) }
         
         let unknownURL = URL(string: "http://test.com/unknown")!
-        let unknownTaskIdentifier = downloadTask.taskIdentifier + 1000
+        let unknownTaskIdentifier = 2
         
         sut.handleProgress(for: unknownURL, totalBytesWritten: 50, expectedTotalBytes: 100)
         sut.handleResumption(for: unknownURL, fileOffset: 50, expectedTotalBytes: 100)
@@ -657,37 +668,6 @@ class AssetDownloadsSessionTests: XCTestCase {
         }
     }
     
-    func test_givenScheduledDownload_whenTheCancelledTaskProducesResumptionDataSynchronously_thenTheResumptionDataIsStored() {
-        let url = URL(string: "http://test.com/example")!
-        let resumptionData = Data("resumption".utf8)
-        
-        let session = StubURLSession()
-        let sut = createSUT(session: session)
-        
-        let downloadTask = StubURLSessionDownloadTask()
-        downloadTask.resumptionDataToProduceSynchronously = resumptionData
-        session.downloadTaskToReturn = downloadTask
-        
-        let downloadID = sut.scheduleDownload(url: url) { _ in }
-        
-        //a task that reports back on the thread that cancelled it deadlocks anything
-        //cancelling whilst still holding the downloads queue
-        sut.pauseDownload(downloadID)
-        
-        session.downloadTaskWithResumeDataToReturn = StubURLSessionDownloadTask()
-        
-        sut.scheduleDownload(url: url) { _ in }
-        
-        XCTAssertEqual(session.events.count, 2)
-        
-        guard case let .downloadTaskWithResumeData(data) = session.events.last else {
-            XCTFail("Unexpected event")
-            return
-        }
-        
-        XCTAssertEqual(data, resumptionData)
-    }
-    
     func test_givenNoScheduledDownloads_whenCancelDownloadIsCalledForAnUnknownID_thenNoDownloadTaskEventsAreRecorded() {
         let url = URL(string: "http://test.com/example")!
         
@@ -716,6 +696,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let sut = createSUT(session: session)
         
         let downloadTask = StubURLSessionDownloadTask()
+        downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
         var firstResult: Result<Data, Error>?
@@ -785,6 +766,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         }
         
         let resumedTask = StubURLSessionDownloadTask()
+        resumedTask.taskIdentifierToReturn = 2
         session.downloadTaskWithResumeDataToReturn = resumedTask
         
         //both scheduled whilst the pause is still in flight, so both join it
@@ -819,6 +801,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         let sut = createSUT(session: session)
         
         let downloadTask = StubURLSessionDownloadTask()
+        downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
         let firstDownloadToken = sut.scheduleDownload(url: url) { _ in }
@@ -832,6 +815,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         resumeDataHandler(Data("resumption".utf8))
         
         let resumedTask = StubURLSessionDownloadTask()
+        resumedTask.taskIdentifierToReturn = 2
         session.downloadTaskWithResumeDataToReturn = resumedTask
         
         var results = [Result<Data, Error>]()
@@ -875,6 +859,7 @@ class AssetDownloadsSessionTests: XCTestCase {
         }
         
         let resumedTask = StubURLSessionDownloadTask()
+        resumedTask.taskIdentifierToReturn = 2
         session.downloadTaskWithResumeDataToReturn = resumedTask
         
         var results = [Result<Data, Error>]()

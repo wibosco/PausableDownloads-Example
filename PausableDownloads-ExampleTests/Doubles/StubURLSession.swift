@@ -21,27 +21,15 @@ class StubURLSession: URLSessionType {
     var downloadTaskToReturn: StubURLSessionDownloadTask!
     var downloadTaskWithResumeDataToReturn: StubURLSessionDownloadTask!
     
-    //when several downloads are in flight at once they need distinct tasks - each call
-    //takes the next one from here before falling back to the single stubs above
-    var downloadTasksToReturn = [StubURLSessionDownloadTask]()
-    
     func downloadTask(with url: URL) -> URLSessionDownloadTaskType {
         events.append(.downloadTask(url))
         
-        return nextDownloadTask() ?? downloadTaskToReturn
+        return downloadTaskToReturn
     }
     
     func downloadTask(withResumeData resumeData: Data) -> URLSessionDownloadTaskType {
         events.append(.downloadTaskWithResumeData(resumeData))
         
-        return nextDownloadTask() ?? downloadTaskWithResumeDataToReturn
-    }
-    
-    private func nextDownloadTask() -> StubURLSessionDownloadTask? {
-        guard !downloadTasksToReturn.isEmpty else {
-            return nil
-        }
-        
-        return downloadTasksToReturn.removeFirst()
+        return downloadTaskWithResumeDataToReturn
     }
 }

@@ -153,6 +153,9 @@ final class ImageViewerViewModelTests: XCTestCase {
         let image = ImageDomainModel.testData(identifier: "a",
                                               url: URL(string: "http://test.com/a.jpg")!)
         
+        let downloadToken = DownloadToken(url: image.url)
+        assetService.downloadTokenToReturn = downloadToken
+        
         let sut = createSUT(imageDomainModel: image, assetService: assetService)
         
         sut.load()
@@ -160,13 +163,13 @@ final class ImageViewerViewModelTests: XCTestCase {
         
         XCTAssertEqual(assetService.events.count, 2)
         
-        guard case let .cancelLoadingImage(cancelledDownloadID) = assetService.events.last else {
+        guard case let .cancelLoadingImage(cancelledDownloadToken) = assetService.events.last else {
             XCTFail("Unexpected event")
             return
         }
         
         //the view model pauses the download it started, not whatever shares the URL
-        XCTAssertEqual(cancelledDownloadID, assetService.issuedDownloadIDs.first)
+        XCTAssertEqual(cancelledDownloadToken, downloadToken)
         XCTAssertEqual(sut.state, .ready(description: image.url.absoluteString))
     }
     
@@ -182,8 +185,11 @@ final class ImageViewerViewModelTests: XCTestCase {
     
     func test_givenPausedAssetLoad_whenLoadIsCalledAgain_thenTheAssetIsRequestedAgain() {
         let assetService = StubAssetService()
+        let image = ImageDomainModel.testData()
         
-        let sut = createSUT(assetService: assetService)
+        assetService.downloadTokenToReturn = DownloadToken(url: image.url)
+        
+        let sut = createSUT(imageDomainModel: image, assetService: assetService)
         
         sut.load()
         sut.pause()
