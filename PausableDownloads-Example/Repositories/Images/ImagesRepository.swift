@@ -9,13 +9,13 @@
 import Foundation
 
 class ImagesRepository {
-    private let urlRequestFactory: CatImagesURLRequestFactory
+    private let urlRequestFactory: ImagesURLRequestFactory
     private let session: URLSession
     
     // MARK: - Init
     
     init(session: URLSession = URLSession.shared,
-         urlRequestFactory: CatImagesURLRequestFactory = CatImagesURLRequestFactory()) {
+         urlRequestFactory: ImagesURLRequestFactory = ImagesURLRequestFactory()) {
         self.session = session
         self.urlRequestFactory = urlRequestFactory
     }

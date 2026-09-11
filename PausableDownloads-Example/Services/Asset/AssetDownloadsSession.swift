@@ -52,7 +52,7 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
         }
     }
     
-    //one entry per URL - everybody who wants it shares the one download
+    //one entry per URL - everybody who wants it shares the same download
     private var downloads = [URL: Download]()
     private let queue = DispatchQueue(label: "com.williamboles.downloadssession")
     
@@ -78,7 +78,7 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
         }
     }
     
-    // MARK: - State
+    // MARK: - ThreadSafety
     
     //`downloads` is only ever reached from inside here, so a read-modify-write of it
     //stays indivisible.
@@ -87,19 +87,6 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
         dispatchPrecondition(condition: .notOnQueue(queue))
         
         return queue.sync(execute: body)
-    }
-    
-    //only a running download owns a task, so only a running download can be matched by one
-    private func runningDownload(withTaskIdentifier taskIdentifier: Int) -> (url: URL, download: Download)? {
-        dispatchPrecondition(condition: .onQueue(queue))
-        
-        return downloads.first { entry in
-            guard case let .running(task) = entry.value.stage else {
-                return false
-            }
-            
-            return task.taskIdentifier == taskIdentifier
-        }.map { (url: $0.key, download: $0.value) }
     }
     
     // MARK: - MemoryPressure
@@ -146,9 +133,6 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
         return token
     }
     
-    //Deciding to start a task and recording it both happen on the queue, so they can't be
-    //split apart by another caller. Replacing the whole entry is what makes resumption data
-    //single use - starting a task overwrites the stage holding it.
     private func startDownload(for url: URL,
                                resumingFrom resumptionData: Data?,
                                handlers: [DownloadToken: DownloadCompletionHandler]) {
@@ -166,8 +150,6 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
         downloads[url] = Download(handlers: handlers,
                                   stage: .running(task: task))
         
-        //`URLSession` delivers its callbacks on its own queue, never synchronously on this
-        //thread, so holding the downloads queue here can't deadlock the way a cancel would
         task.resume()
     }
     
@@ -177,23 +159,18 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
         let url = token.url
         
         let taskToPause = sync { () -> URLSessionDownloadTaskType? in
-            //Pausing drops the caller - it isn't a result anybody is waiting to hear. A
-            //token that isn't in there has already been dropped, so there's nothing to do.
             guard var download = downloads[url],
                   download.handlers.removeValue(forKey: token) != nil else {
                 return nil
             }
             
-            //write the entry back whichever way we leave, so no return can half-update it
             defer { downloads[url] = download }
             
-            //somebody else still wants this URL, so the download carries on
             guard download.handlers.isEmpty else {
                 os_log(.info, "Dropping a caller from a download others still want: %{public}@", url.absoluteString)
                 return nil
             }
             
-            //a cancel that's already in flight will produce the resumption data on its own
             guard case let .running(task) = download.stage else {
                 return nil
             }
@@ -209,8 +186,6 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
             return
         }
         
-        //`URLSession` can answer on the thread that cancelled, so the downloads queue
-        //mustn't be held here
         taskToPause.cancel(byProducingResumeData: { [weak self] data in
             self?.handleResumptionData(data,
                                        for: url)
@@ -220,7 +195,6 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
     private func handleResumptionData(_ data: Data?,
                                       for url: URL) {
         sync {
-            //only a pause we issued can be answered here, and only once
             guard var download = downloads[url],
                   case .pausing = download.stage else {
                 os_log(.info, "Ignoring resumption data for a download that is no longer pausing: %{public}@", url.absoluteString)
@@ -228,7 +202,6 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
             }
             
             guard !download.handlers.isEmpty else {
-                //nobody's waiting, so park the data if there is any and forget the download if there isn't
                 if let data = data {
                     os_log(.info, "Cancelled download task has produced resumption data of: %{public}@ for %{public}@", data.description, url.absoluteString)
                     
@@ -243,7 +216,7 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
             
             os_log(.info, "Resumption data has landed so starting the download somebody joined: %{public}@", url.absoluteString)
             
-            //somebody asked for this URL whilst the pause was in flight
+            //somebody asked for this URL whilst the pause was in flight so restart download
             startDownload(for: url,
                           resumingFrom: data,
                           handlers: download.handlers)
@@ -292,28 +265,39 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
     
     private func deliverResult(forTaskWith taskIdentifier: Int,
                                _ makeResult: () -> Result<Data, Error>) {
-        let handlers = sync { () -> [DownloadCompletionHandler] in
-            //a download that has already been delivered went with the entry that held it
-            guard let running = runningDownload(withTaskIdentifier: taskIdentifier) else {
+        let completionHandlers = sync { () -> [DownloadCompletionHandler] in
+            let entry = downloads.first { entry in
+                guard case let .running(task) = entry.value.stage else {
+                    return false
+                }
+                
+                return task.taskIdentifier == taskIdentifier
+            }
+            
+            guard let entry = entry else {
+                os_log(.info, "Unknown download finished: %{public}d", taskIdentifier)
                 return []
             }
             
-            os_log(.info, "Finished download of: %{public}@", running.url.absoluteString)
+            let url = entry.key
+            let download = entry.value
             
-            //the download is over for everybody who asked for it, so the entry goes with it
-            downloads[running.url] = nil
+            os_log(.info, "Finished download of: %{public}@", url.absoluteString)
             
-            return Array(running.download.handlers.values)
+            downloads[url] = nil
+            
+            return Array(download.handlers.values)
         }
         
-        guard !handlers.isEmpty else {
+        guard !completionHandlers.isEmpty else {
             return
         }
         
         //made once and handed to everybody who coalesced onto this download
         let result = makeResult()
         
-        handlers.forEach { $0(result) }
+        // can't happen within `sync` in case the callee blocks the thread
+        completionHandlers.forEach { $0(result) }
     }
 }
 

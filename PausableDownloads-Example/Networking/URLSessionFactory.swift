@@ -9,11 +9,13 @@
 import Foundation
 
 protocol URLSessionFactoryType {
-    func defaultSession(delegate: URLSessionDelegate?, delegateQueue queue: OperationQueue?) -> URLSessionType
+    func defaultSession(delegate: URLSessionDelegate?,
+                        delegateQueue queue: OperationQueue?) -> URLSessionType
 }
 
 extension URLSessionFactoryType {
-    func defaultSession(delegate: URLSessionDelegate? = nil, delegateQueue queue: OperationQueue? = nil) -> URLSessionType {
+    func defaultSession(delegate: URLSessionDelegate? = nil,
+                        delegateQueue queue: OperationQueue? = nil) -> URLSessionType {
         return defaultSession(delegate: delegate, delegateQueue: queue)
     }
 }
@@ -47,14 +49,17 @@ class URLSessionFactory: URLSessionFactoryType {
     
     // MARK: - Default
     
-    func defaultSession(delegate: URLSessionDelegate? = nil, delegateQueue queue: OperationQueue? = nil) -> URLSessionType {
+    func defaultSession(delegate: URLSessionDelegate? = nil,
+                        delegateQueue queue: OperationQueue? = nil) -> URLSessionType {
         let configuration = URLSessionConfiguration.default
         
         //For demonstration purposes disable caching
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.urlCache = nil
         
-        let session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: queue)
+        let session = URLSession(configuration: configuration,
+                                 delegate: delegate,
+                                 delegateQueue: queue)
         
         return session
     }
