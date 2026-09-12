@@ -1,5 +1,5 @@
 //
-//  AssetDownloadsSession.swift
+//  Downloader.swift
 //  PausableDownloads-Example
 //
 //  Created by William Boles on 14/12/2019.
@@ -9,71 +9,80 @@
 import Foundation
 import os
 
-typealias DownloadCompletionHandler = ((_ result: Result<Data, Error>) -> ())
+//called on whichever thread `URLSession` delivers on - callers hop to their own queue
+typealias DownloadCompletionHandler = (Result<Data, Error>) -> ()
 
-/* Identifies one caller's interest in a URL rather than one download, so several callers
- can share a single download of that URL and each pause and be answered independently. The
- URL comes back with the token so a pause can go straight to the download it belongs to.
- */
+//identifies one caller's interest in a URL rather than one download, so several callers
+//can coalesce onto a single download of that URL and each pause and be answered
+//independently. The URL comes back with the token so a pause can go straight to the
+//download it belongs to
 struct DownloadToken: Hashable {
     let url: URL
     
-    private let rawValue = UUID()
+    private let id = UUID()
     
     init(url: URL) {
         self.url = url
     }
 }
 
-protocol AssetDownloadsSession {
+protocol Downloader {
     @discardableResult
-    func scheduleDownload(for url: URL,
-                          completionHandler: @escaping DownloadCompletionHandler) -> DownloadToken
-    func pauseDownload(_ token: DownloadToken)
+    func download(_ url: URL,
+                  completionHandler: @escaping DownloadCompletionHandler) -> DownloadToken
+    func pause(_ token: DownloadToken)
 }
 
-final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
+final class DefaultDownloader: NSObject, Downloader {
     private final class Download {
         let url: URL
         
-        private(set) var completionHandlers: [DownloadToken: DownloadCompletionHandler]
+        private(set) var completionHandlers = [DownloadToken: DownloadCompletionHandler]()
         private(set) var stage: DownloadStage = .ready
         private(set) var task: URLSessionDownloadTaskType?
         private(set) var resumptionData: Data?
         
         // MARK: - Init
         
-        init(url: URL,
-             completionHandler: @escaping DownloadCompletionHandler,
-             for token: DownloadToken) {
+        init(url: URL) {
             self.url = url
-            self.completionHandlers = [token: completionHandler]
         }
         
-        // MARK: - Coalescing
+        // MARK: - Callers
         
-        //a token is unique per caller, so this coalesces onto the download rather than
-        //replacing whoever is already waiting on it
-        func addCoalescedCompletionHandler(_ completionHandler: @escaping DownloadCompletionHandler,
-                                           for token: DownloadToken) {
+        //a token is unique per caller, so this adds to whoever is already waiting rather
+        //than replacing them
+        func add(_ completionHandler: @escaping DownloadCompletionHandler,
+                 for token: DownloadToken) {
             completionHandlers[token] = completionHandler
         }
         
         //`true` when the token was one of ours
         @discardableResult
-        func removeCoalescedCompletionHandler(for token: DownloadToken) -> Bool {
+        func remove(_ token: DownloadToken) -> Bool {
             completionHandlers.removeValue(forKey: token) != nil
+        }
+        
+        var hasCallers: Bool {
+            !completionHandlers.isEmpty
         }
         
         // MARK: - Stage
         
-        func started(with task: URLSessionDownloadTaskType) {
+        //a download only needs a task when nothing is already on its way - freshly
+        //constructed, or paused with resumption data waiting to be picked up
+        var needsTask: Bool {
+            stage == .ready || stage == .paused
+        }
+        
+        func markRunning(with task: URLSessionDownloadTaskType) {
             stage = .running
             self.task = task
             resumptionData = nil
         }
         
-        func pausing() -> URLSessionDownloadTaskType? {
+        //returns the task to cancel, or nil if there isn't one running
+        func markPausing() -> URLSessionDownloadTaskType? {
             guard stage == .running,
                   let task = task else {
                 return nil
@@ -84,40 +93,46 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
             return task
         }
         
-        func paused(with resumptionData: Data) {
+        func markPaused(with resumptionData: Data) {
             stage = .paused
             self.resumptionData = resumptionData
             task = nil
         }
+        
+        //a result only counts if it came from the task this download is currently running -
+        //not one it has since replaced, and not one that is winding down after a pause
+        func isAwaiting(taskIdentifier: Int) -> Bool {
+            stage == .running && task?.taskIdentifier == taskIdentifier
+        }
     }
     
-    private enum DownloadStage {
+    private enum DownloadStage: Equatable {
         case ready                            //constructed, no task yet - lives for one `sync` block
         case running
         case pausing                          //cancel issued, resumption data hasn't landed yet
         case paused
     }
     
-    //one entry per URL - everybody who wants it shares the same download
+    //one entry per URL - everybody who wants it coalesces onto the same download
     private var downloads = [URL: Download]()
-    private let queue = DispatchQueue(label: "com.williamboles.downloadssession")
+    private let queue = DispatchQueue(label: "com.williamboles.downloader")
     
-    private var session: URLSessionType!
+    private let urlSessionFactory: URLSessionFactoryType
+    private lazy var session: URLSessionType = urlSessionFactory.defaultSession(delegate: self)
     private let memoryPressureMonitor: MemoryPressureMonitor
     
     // MARK: - Singleton
     
-    static let shared = DefaultAssetDownloadsSession()
+    static let shared = DefaultDownloader()
     
     // MARK: - Init
     
     init(urlSessionFactory: URLSessionFactoryType = URLSessionFactory(),
          memoryPressureMonitor: MemoryPressureMonitor = DefaultMemoryPressureMonitor()) {
+        self.urlSessionFactory = urlSessionFactory
         self.memoryPressureMonitor = memoryPressureMonitor
         
         super.init()
-        
-        self.session = urlSessionFactory.defaultSession(delegate: self)
         
         memoryPressureMonitor.startMonitoring { [weak self] in
             self?.purgePausedDownloads()
@@ -127,7 +142,7 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
     // MARK: - ThreadSafety
     
     //`downloads` is only ever reached from inside here, so a read-modify-write of it
-    //stays indivisible.
+    //stays indivisible
     private func sync<T>(_ body: () -> T) -> T {
         //`sync` isn't reentrant - trap on a nested call rather than deadlock
         dispatchPrecondition(condition: .notOnQueue(queue))
@@ -145,97 +160,70 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
         }
     }
     
-    // MARK: - Schedule
+    // MARK: - Download
     
     @discardableResult
-    func scheduleDownload(for url: URL,
-                          completionHandler: @escaping DownloadCompletionHandler) -> DownloadToken {
+    func download(_ url: URL,
+                  completionHandler: @escaping DownloadCompletionHandler) -> DownloadToken {
         let token = DownloadToken(url: url)
         
         sync {
-            if let download = downloads[url] {
-                coalesceWithExistingDownload(download,
-                                             completionHandler: completionHandler,
-                                             for: token)
+            let download = downloads[url] ?? makeDownload(for: url)
+            download.add(completionHandler, for: token)
+            
+            if download.needsTask {
+                startDownload(download)
             } else {
-                scheduleNewDownload(for: url,
-                                    completionHandler: completionHandler,
-                                    token: token)
+                os_log(.info, "Coalescing onto an existing active download of: %{public}@", url.absoluteString)
             }
         }
         
         return token
     }
     
-    private func scheduleNewDownload(for url: URL,
-                                     completionHandler: @escaping DownloadCompletionHandler,
-                                     token: DownloadToken) {
+    private func makeDownload(for url: URL) -> Download {
         dispatchPrecondition(condition: .onQueue(queue))
         
-        let download = Download(url: url,
-                                completionHandler: completionHandler,
-                                for: token)
+        let download = Download(url: url)
         downloads[url] = download
         
-        startDownload(download,
-                      resumingFrom: nil)
+        return download
     }
     
-    private func coalesceWithExistingDownload(_ download: Download,
-                                              completionHandler: @escaping DownloadCompletionHandler,
-                                              for token: DownloadToken) {
-        dispatchPrecondition(condition: .onQueue(queue))
-        
-        //a download for `url` already exists so coalescing this new request with it
-        download.addCoalescedCompletionHandler(completionHandler,
-                                               for: token)
-        
-        //a paused download is the only one with nothing already on its way
-        guard download.stage == .paused else {
-            os_log(.info, "Joining an existing active download of: %{public}@", download.url.absoluteString)
-            
-            return
-        }
-        
-        startDownload(download,
-                      resumingFrom: download.resumptionData)
-    }
-    
-    private func startDownload(_ download: Download,
-                               resumingFrom resumptionData: Data?) {
+    private func startDownload(_ download: Download) {
         dispatchPrecondition(condition: .onQueue(queue))
         
         let task: URLSessionDownloadTaskType
-        if let resumptionData = resumptionData {
-            os_log(.info, "Resuming an existing paused download: %{public}@", download.url.absoluteString)
+        if let resumptionData = download.resumptionData {
+            os_log(.info, "Resuming a paused download: %{public}@", download.url.absoluteString)
             task = session.downloadTask(withResumeData: resumptionData)
         } else {
-            os_log(.info, "Creating a new download: %{public}@", download.url.absoluteString)
+            os_log(.info, "Starting a new download: %{public}@", download.url.absoluteString)
             task = session.downloadTask(with: download.url)
         }
         
-        download.started(with: task)
+        download.markRunning(with: task)
         
         task.resume()
     }
     
     // MARK: - Pause
     
-    func pauseDownload(_ token: DownloadToken) {
+    func pause(_ token: DownloadToken) {
         let url = token.url
         
-        let taskToPause = sync { () -> URLSessionDownloadTaskType? in
+        let taskToPause: URLSessionDownloadTaskType? = sync {
             guard let download = downloads[url],
-                  download.removeCoalescedCompletionHandler(for: token) else {
+                  download.remove(token) else {
                 return nil
             }
             
-            guard download.completionHandlers.isEmpty else {
-                os_log(.info, "Dropping a caller from a download others still want: %{public}@", url.absoluteString)
+            guard !download.hasCallers else {
+                os_log(.info, "Dropping a coalesced caller from a download others still want: %{public}@", url.absoluteString)
                 return nil
             }
             
-            guard let task = download.pausing() else {
+            guard let task = download.markPausing() else {
                 return nil
             }
             
@@ -263,25 +251,23 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
                 return
             }
             
-            guard download.completionHandlers.isEmpty else {
+            if let resumptionData = resumptionData {
+                os_log(.info, "Cancelled download task has produced %{public}d bytes of resumption data for %{public}@", resumptionData.count, url.absoluteString)
+                
+                download.markPaused(with: resumptionData)
+            }
+            
+            if download.hasCallers {
+                //whilst this download was being paused another request came in for it, so
+                //pick it straight back up - from the resumption data if there was any
                 os_log(.info, "Restarting download: %{public}@", url.absoluteString)
                 
-                //whilst this download was being paused, another request came in for download so restart the download
-                startDownload(download,
-                              resumingFrom: resumptionData)
-                return
-            }
-            
-            guard let resumptionData = resumptionData else {
-                os_log(.info, "Dropping a paused download that produced no resumption data: %{public}@", url.absoluteString)
+                startDownload(download)
+            } else if resumptionData == nil {
+                os_log(.error, "Dropping a paused download that produced no resumption data: %{public}@", url.absoluteString)
                 
                 downloads[url] = nil
-                return
             }
-            
-            os_log(.info, "Cancelled download task has produced resumption data of: %{public}@ for %{public}@", resumptionData.description, url.absoluteString)
-            
-            download.paused(with: resumptionData)
         }
     }
     
@@ -304,14 +290,17 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
     func handleFinishedDownloading(for url: URL,
                                    taskIdentifier: Int,
                                    to location: URL) {
+        //`location` is only valid until this delegate call returns, so read it now
         let result: Result<Data, Error>
         do {
             result = .success(try Data(contentsOf: location))
+            
+            os_log(.info, "Download completed for: %{public}@", url.absoluteString)
         } catch let error {
             result = .failure(NetworkingError.invalidData(underlyingError: error))
+            
+            os_log(.error, "Download completed for: %{public}@ but its file could not be read: %{public}@", url.absoluteString, error.localizedDescription)
         }
-        
-        os_log(.info, "Download completed for: %{public}@", url.absoluteString)
         
         deliverResult(result,
                       for: url,
@@ -327,7 +316,7 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
             return
         }
         
-        os_log(.info, "Download failed for: %{public}@ with error: %{public}@", url.absoluteString, error.localizedDescription)
+        os_log(.error, "Download failed for: %{public}@ with error: %{public}@", url.absoluteString, error.localizedDescription)
         
         deliverResult(.failure(NetworkingError.retrieval(underlyingError: error)),
                       for: url,
@@ -338,22 +327,10 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
     private func deliverResult(_ result: Result<Data, Error>,
                                for url: URL,
                                taskIdentifier: Int) {
-        //get all completionHandlers for this url
-        let completionHandlers = sync { () -> [DownloadCompletionHandler] in
-            guard let download = downloads[url] else {
-                os_log(.info, "Ignoring an unknown download: %{public}@", url.absoluteString)
-                return []
-            }
-            
-            //nothing should be in flight whilst pausing or paused
-            guard download.stage == .running else {
-                os_log(.info, "Ignoring a download that isn't running: %{public}@", url.absoluteString)
-                return []
-            }
-            
-            //a task this download has since replaced, winding down late
-            guard download.task?.taskIdentifier == taskIdentifier else {
-                os_log(.info, "Ignoring download where the task has been replaced: %{public}d", taskIdentifier)
+        let completionHandlers: [DownloadCompletionHandler] = sync {
+            guard let download = downloads[url],
+                  download.isAwaiting(taskIdentifier: taskIdentifier) else {
+                os_log(.info, "Ignoring a result for a task this downloader isn't waiting on: %{public}d", taskIdentifier)
                 return []
             }
             
@@ -362,12 +339,18 @@ final class DefaultAssetDownloadsSession: NSObject, AssetDownloadsSession {
             return Array(download.completionHandlers.values)
         }
         
-        // can't happen within `sync` in case the callee blocks the thread
+        //can't happen within `sync` in case the callee blocks the thread
         completionHandlers.forEach { $0(result) }
     }
 }
 
-extension DefaultAssetDownloadsSession: URLSessionDownloadDelegate {
+private extension URLSessionTask {
+    var downloadURL: URL? {
+        originalRequest?.url
+    }
+}
+
+extension DefaultDownloader: URLSessionDownloadDelegate {
     
     // MARK: - URLSessionDownloadDelegate
     
@@ -376,7 +359,7 @@ extension DefaultAssetDownloadsSession: URLSessionDownloadDelegate {
                     didWriteData bytesWritten: Int64,
                     totalBytesWritten: Int64,
                     totalBytesExpectedToWrite: Int64) {
-        guard let url = downloadTask.originalRequest?.url else {
+        guard let url = downloadTask.downloadURL else {
             return
         }
         
@@ -389,7 +372,7 @@ extension DefaultAssetDownloadsSession: URLSessionDownloadDelegate {
                     downloadTask: URLSessionDownloadTask,
                     didResumeAtOffset fileOffset: Int64,
                     expectedTotalBytes: Int64) {
-        guard let url = downloadTask.originalRequest?.url else {
+        guard let url = downloadTask.downloadURL else {
             return
         }
         
@@ -401,7 +384,7 @@ extension DefaultAssetDownloadsSession: URLSessionDownloadDelegate {
     func urlSession(_ session: URLSession,
                     downloadTask: URLSessionDownloadTask,
                     didFinishDownloadingTo location: URL) {
-        guard let url = downloadTask.originalRequest?.url else {
+        guard let url = downloadTask.downloadURL else {
             return
         }
         
@@ -415,7 +398,7 @@ extension DefaultAssetDownloadsSession: URLSessionDownloadDelegate {
                     didCompleteWithError error: Error?) {
         //a success has already been dealt with by `didFinishDownloadingTo`
         guard let error = error,
-              let url = task.originalRequest?.url else {
+              let url = task.downloadURL else {
             return
         }
         

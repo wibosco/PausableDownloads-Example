@@ -15,50 +15,53 @@ protocol ImageGalleryViewModelDelegate: AnyObject {
 
 final class ImageGalleryViewModel {
     enum State: Equatable {
-        case loadingImages
-        case loadedImages
+        case loading
+        case loaded
         case failed
     }
     
     weak var delegate: ImageGalleryViewModelDelegate?
     
-    private(set) var state: State = .loadingImages
+    private(set) var state: State = .loading
     private(set) var currentIndex = 0
     
     private let imagesService: ImagesService
-    private let assetService: AssetService
+    private let imageLoader: ImageLoader
     
     private var images = [ImageDomainModel]()
+    
+    //keyed by position in `images` - safe because `images` is only ever replaced wholesale
+    //and this is cleared at the same moment, so the indices can't drift apart
     private var imageViewerViewModels = [Int: ImageViewerViewModel]()
     
     // MARK: - Init
     
     init(imagesService: ImagesService = DefaultImagesService(),
-         assetService: AssetService = DefaultAssetService()) {
+         imageLoader: ImageLoader = DefaultImageLoader()) {
         self.imagesService = imagesService
-        self.assetService = assetService
+        self.imageLoader = imageLoader
     }
     
     // MARK: - Load
     
     func load() {
-        transition(to: .loadingImages)
+        transition(to: .loading)
         
-        imagesService.retrieveImages(callbackQueue: .main) { [weak self] (result) in
-            guard let self = self else {
+        imagesService.load(callbackQueue: .main) { [weak self] result in
+            guard let self else {
                 return
             }
             
             switch result {
-            case .success(let images):
+            case let .success(images):
                 self.images = images
                 self.imageViewerViewModels.removeAll()
                 self.currentIndex = 0
                 
-                self.transition(to: .loadedImages)
+                self.transition(to: .loaded)
                 
-                self.viewModel(at: self.currentIndex)?.load()
-            case .failure(_):
+                self.viewModel(at: self.currentIndex)?.loadImage()
+            case .failure:
                 self.transition(to: .failed)
             }
         }
@@ -67,11 +70,11 @@ final class ImageGalleryViewModel {
     // MARK: - Pages
     
     var numberOfImages: Int {
-        return images.count
+        images.count
     }
     
     func viewModel(at index: Int) -> ImageViewerViewModel? {
-        guard index >= 0 && index < images.count else {
+        guard images.indices.contains(index) else {
             return nil
         }
         
@@ -80,7 +83,7 @@ final class ImageGalleryViewModel {
         }
         
         let viewModel = ImageViewerViewModel(imageDomainModel: images[index],
-                                             assetService: assetService)
+                                             imageLoader: imageLoader)
         imageViewerViewModels[index] = viewModel
         
         return viewModel
@@ -88,18 +91,19 @@ final class ImageGalleryViewModel {
     
     // MARK: - Move
     
-    func moveTo(index: Int) {
+    func move(to index: Int) {
         guard index != currentIndex,
-              index >= 0,
-              index < images.count else {
+              images.indices.contains(index) else {
             return
         }
         
-        imageViewerViewModels[currentIndex]?.pause()
+        //deliberately not `viewModel(at:)` - a page that never had a view model never
+        //started a load, so there is nothing to cancel and no reason to create one
+        imageViewerViewModels[currentIndex]?.cancelImageLoad()
         
         currentIndex = index
         
-        viewModel(at: index)?.load()
+        viewModel(at: index)?.loadImage()
     }
     
     // MARK: - State
@@ -107,6 +111,7 @@ final class ImageGalleryViewModel {
     private func transition(to state: State) {
         self.state = state
         
-        delegate?.viewModel(self, didChangeTo: state)
+        delegate?.viewModel(self,
+                            didChangeTo: state)
     }
 }

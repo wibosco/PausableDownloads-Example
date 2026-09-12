@@ -115,7 +115,7 @@ extension ImageGalleryViewController: UIPageViewControllerDelegate {
             return
         }
         
-        galleryViewModel.moveTo(index: imageViewerViewController.index)
+        galleryViewModel.move(to: imageViewerViewController.index)
         
         updateTitle(for: imageViewerViewController.index)
     }
@@ -128,9 +128,9 @@ extension ImageGalleryViewController: ImageGalleryViewModelDelegate {
     func viewModel(_ viewModel: ImageGalleryViewModel,
                    didChangeTo state: ImageGalleryViewModel.State) {
         switch state {
-        case .loadingImages:
+        case .loading:
             loadingActivityIndicator.startAnimating()
-        case .loadedImages:
+        case .loaded:
             loadingActivityIndicator.stopAnimating()
             showFirstImage()
         case .failed:

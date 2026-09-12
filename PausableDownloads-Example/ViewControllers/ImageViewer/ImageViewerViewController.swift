@@ -50,18 +50,18 @@ class ImageViewerViewController: UIViewController {
     
     private func render(_ state: ImageViewerViewModel.State) {
         switch state {
-        case .ready(let description):
+        case .ready:
             loadingActivityIndicator.stopAnimating()
             assetImageView.image = nil
-            descriptionLabel.text = description
-        case .loadingAsset(let description):
+            descriptionLabel.text = viewModel.description
+        case .loading:
             loadingActivityIndicator.startAnimating()
             assetImageView.image = nil
-            descriptionLabel.text = description
-        case .loadedAsset(let image, let description):
+            descriptionLabel.text = viewModel.description
+        case let .loaded(image):
             loadingActivityIndicator.stopAnimating()
             assetImageView.image = image
-            descriptionLabel.text = description
+            descriptionLabel.text = viewModel.description
         case .failed:
             loadingActivityIndicator.stopAnimating()
             //TODO: Handle error

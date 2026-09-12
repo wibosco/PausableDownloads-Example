@@ -12,13 +12,13 @@ import Foundation
 
 final class StubImagesService: ImagesService {
     enum Event {
-        case retrieveImages(DispatchQueue, ((_ result: Result<[ImageDomainModel], Error>) -> ()))
+        case load(DispatchQueue, LoadImagesCompletionHandler)
     }
     
     private(set) var events = [Event]()
     
-    func retrieveImages(callbackQueue: DispatchQueue,
-                        completionHandler: @escaping ((_ result: Result<[ImageDomainModel], Error>) -> ())) {
-        events.append(.retrieveImages(callbackQueue, completionHandler))
+    func load(callbackQueue: DispatchQueue,
+              completionHandler: @escaping LoadImagesCompletionHandler) {
+        events.append(.load(callbackQueue, completionHandler))
     }
 }

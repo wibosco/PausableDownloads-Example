@@ -15,101 +15,87 @@ protocol ImageViewerViewModelDelegate: AnyObject {
 
 final class ImageViewerViewModel {
     enum State: Equatable {
-        case ready(description: String)
-        case loadingAsset(description: String)
-        case loadedAsset(UIImage, description: String)
+        case ready
+        case loading
+        case loaded(UIImage)
         case failed
     }
     
     weak var delegate: ImageViewerViewModelDelegate?
     
-    private(set) var state: State
+    private(set) var state: State = .ready
     
     let imageDomainModel: ImageDomainModel
+    let description: String
     
-    private let assetService: AssetService
+    private let imageLoader: ImageLoader
     
-    //the download this view model started, so a pause targets its own and nobody else's
-    private var downloadToken: DownloadToken?
+    //a live token means a load is in flight - cleared when the load finishes or is cancelled
+    private var loadToken: LoadToken?
     
     // MARK: - Init
     
     init(imageDomainModel: ImageDomainModel,
-         assetService: AssetService = DefaultAssetService()) {
+         imageLoader: ImageLoader = DefaultImageLoader()) {
         self.imageDomainModel = imageDomainModel
-        self.assetService = assetService
-        self.state = .ready(description: imageDomainModel.url.absoluteString)
+        self.imageLoader = imageLoader
+        self.description = imageDomainModel.url.absoluteString
     }
     
     // MARK: - Load
     
-    func load() {
-        /* Returning to an image that has already downloaded shouldn't tear the
-         asset back off screen, and one that is already in flight is being taken
-         care of by the download session.
-         */
-        guard !isLoaded && !isLoading else {
+    func loadImage() {
+        guard canLoad else {
             return
         }
         
-        transition(to: .loadingAsset(description: imageDomainModel.url.absoluteString))
+        transition(to: .loading)
         
-        downloadToken = assetService.loadImage(imageDomainModel, callbackQueue: .main) { [weak self] (result) in
+        loadToken = imageLoader.load(imageDomainModel,
+                                     callbackQueue: .main) { [weak self] result in
             guard let self = self else {
                 return
             }
             
+            self.loadToken = nil
+            
             switch result {
-            case .success(let loadResult):
-                //a stale download for an image this view model no longer represents
-                guard loadResult.imageDomainModel == self.imageDomainModel else {
-                    return
-                }
-                
-                self.transition(to: .loadedAsset(loadResult.image, description: self.imageDomainModel.url.absoluteString))
-            case .failure(_):
+            case let .success(image):
+                self.transition(to: .loaded(image))
+            case .failure:
                 self.transition(to: .failed)
             }
         }
     }
     
-    // MARK: - Pause
+    // MARK: - Cancel
     
-    func pause() {
-        guard isLoading,
-              let downloadToken = downloadToken else {
+    func cancelImageLoad() {
+        guard let loadToken else {
             return
         }
         
-        assetService.cancelLoadingImage(downloadToken)
+        imageLoader.cancel(loadToken)
+        self.loadToken = nil
         
-        self.downloadToken = nil
-        
-        transition(to: .ready(description: imageDomainModel.url.absoluteString))
+        transition(to: .ready)
     }
     
     // MARK: - State
     
-    private var isLoaded: Bool {
-        guard case .loadedAsset = state else {
+    private var canLoad: Bool {
+        switch state {
+        case .ready, .failed:
+            return true
+        case .loading, .loaded:
             return false
         }
-        
-        return true
-    }
-    
-    private var isLoading: Bool {
-        guard case .loadingAsset = state else {
-            return false
-        }
-        
-        return true
     }
     
     private func transition(to state: State) {
         self.state = state
         
-        delegate?.viewModel(self, didChangeTo: state)
+        delegate?.viewModel(self,
+                            didChangeTo: state)
     }
-
 }

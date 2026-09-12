@@ -22,60 +22,62 @@ final class ImageViewerViewModelTests: XCTestCase {
         
         let sut = createSUT(imageDomainModel: image)
         
-        XCTAssertEqual(sut.state, .ready(description: image.url.absoluteString))
+        XCTAssertEqual(sut.state, .ready)
     }
     
     // MARK: Load
     
     func test_givenViewModel_whenLoadIsCalled_thenTheAssetIsRequested() {
-        let assetService = StubAssetService()
+        let imageLoader = StubImageLoader()
         let image = ImageDomainModel.testData(identifier: "a",
                                               url: URL(string: "http://test.com/a.jpg")!)
         
-        let sut = createSUT(imageDomainModel: image, assetService: assetService)
+        let sut = createSUT(imageDomainModel: image,
+                            imageLoader: imageLoader)
         
-        sut.load()
+        sut.loadImage()
         
-        XCTAssertEqual(assetService.events.count, 1)
+        XCTAssertEqual(imageLoader.events.count, 1)
         
-        guard case let .loadImage(loadedImage, callbackQueue, _) = assetService.events.first else {
+        guard case let .load(loadedImage, callbackQueue, _) = imageLoader.events.first else {
             XCTFail("Unexpected event")
             return
         }
         
         XCTAssertEqual(loadedImage, image)
         XCTAssertTrue(callbackQueue === DispatchQueue.main)
-        XCTAssertEqual(sut.state, .loadingAsset(description: image.url.absoluteString))
+        XCTAssertEqual(sut.state, .loading)
     }
     
     func test_givenAssetLoadInProgress_whenTheAssetLoads_thenStateTransitionsToLoadedAsset() {
-        let assetService = StubAssetService()
+        let imageLoader = StubImageLoader()
         let image = ImageDomainModel.testData(identifier: "a",
                                               url: URL(string: "http://test.com/a.jpg")!)
         
-        let sut = createSUT(imageDomainModel: image, assetService: assetService)
+        let sut = createSUT(imageDomainModel: image,
+                            imageLoader: imageLoader)
         
-        sut.load()
+        sut.loadImage()
         
-        guard case let .loadImage(_, _, completionHandler) = assetService.events.first else {
+        guard case let .load(_, _, completionHandler) = imageLoader.events.first else {
             XCTFail("Unexpected event")
             return
         }
         
         let loadedImage = UIImage()
-        completionHandler(.success(LoadImageResult(imageDomainModel: image, image: loadedImage)))
+        completionHandler(.success(loadedImage))
         
-        XCTAssertEqual(sut.state, .loadedAsset(loadedImage, description: image.url.absoluteString))
+        XCTAssertEqual(sut.state, .loaded(loadedImage))
     }
     
     func test_givenAssetLoadInProgress_whenTheAssetFailsToLoad_thenStateTransitionsToFailed() {
-        let assetService = StubAssetService()
+        let imageLoader = StubImageLoader()
         
-        let sut = createSUT(assetService: assetService)
+        let sut = createSUT(imageLoader: imageLoader)
         
-        sut.load()
+        sut.loadImage()
         
-        guard case let .loadImage(_, _, completionHandler) = assetService.events.first else {
+        guard case let .load(_, _, completionHandler) = imageLoader.events.first else {
             XCTFail("Unexpected event")
             return
         }
@@ -85,130 +87,129 @@ final class ImageViewerViewModelTests: XCTestCase {
         XCTAssertEqual(sut.state, .failed)
     }
     
-    func test_givenAssetLoadInProgress_whenAResultForAnotherImageArrives_thenStateIsUnchanged() {
-        let assetService = StubAssetService()
-        let delegate = StubImageViewerViewModelDelegate()
-        
-        let imageA = ImageDomainModel.testData(identifier: "a",
-                                               url: URL(string: "http://test.com/a.jpg")!)
-        let imageB = ImageDomainModel.testData(identifier: "b",
-                                               url: URL(string: "http://test.com/b.jpg")!)
-        
-        let sut = createSUT(imageDomainModel: imageA, assetService: assetService)
-        sut.delegate = delegate
-        
-        sut.load()
-        
-        guard case let .loadImage(_, _, completionHandler) = assetService.events.first else {
-            XCTFail("Unexpected event")
-            return
-        }
-        
-        let eventCountBeforeStaleResult = delegate.events.count
-        
-        completionHandler(.success(LoadImageResult(imageDomainModel: imageB, image: UIImage())))
-        
-        XCTAssertEqual(delegate.events.count, eventCountBeforeStaleResult)
-        XCTAssertEqual(sut.state, .loadingAsset(description: imageA.url.absoluteString))
-    }
-    
     func test_givenAssetLoadInProgress_whenLoadIsCalledAgain_thenTheAssetIsNotRequestedASecondTime() {
-        let assetService = StubAssetService()
+        let imageLoader = StubImageLoader()
         
-        let sut = createSUT(assetService: assetService)
+        let sut = createSUT(imageLoader: imageLoader)
         
-        sut.load()
-        sut.load()
+        sut.loadImage()
+        sut.loadImage()
         
-        XCTAssertEqual(assetService.events.count, 1)
+        XCTAssertEqual(imageLoader.events.count, 1)
     }
     
     func test_givenLoadedAsset_whenLoadIsCalledAgain_thenTheAssetIsNotRequestedASecondTime() {
-        let assetService = StubAssetService()
+        let imageLoader = StubImageLoader()
         let image = ImageDomainModel.testData(identifier: "a",
                                               url: URL(string: "http://test.com/a.jpg")!)
         
-        let sut = createSUT(imageDomainModel: image, assetService: assetService)
+        let sut = createSUT(imageDomainModel: image,
+                            imageLoader: imageLoader)
         
-        sut.load()
+        sut.loadImage()
         
-        guard case let .loadImage(_, _, completionHandler) = assetService.events.first else {
+        guard case let .load(_, _, completionHandler) = imageLoader.events.first else {
             XCTFail("Unexpected event")
             return
         }
         
         let loadedImage = UIImage()
-        completionHandler(.success(LoadImageResult(imageDomainModel: image, image: loadedImage)))
+        completionHandler(.success(loadedImage))
         
-        sut.load()
+        sut.loadImage()
         
-        XCTAssertEqual(assetService.events.count, 1)
-        XCTAssertEqual(sut.state, .loadedAsset(loadedImage, description: image.url.absoluteString))
+        XCTAssertEqual(imageLoader.events.count, 1)
+        XCTAssertEqual(sut.state, .loaded(loadedImage))
     }
     
     // MARK: Pause
     
     func test_givenAssetLoadInProgress_whenPauseIsCalled_thenTheAssetLoadIsCancelledAndStateReturnsToReady() {
-        let assetService = StubAssetService()
+        let imageLoader = StubImageLoader()
         let image = ImageDomainModel.testData(identifier: "a",
                                               url: URL(string: "http://test.com/a.jpg")!)
         
-        let downloadToken = DownloadToken(url: image.url)
-        assetService.downloadTokenToReturn = downloadToken
+        let token = LoadToken(url: image.url)
+        imageLoader.tokenToReturn = token
         
-        let sut = createSUT(imageDomainModel: image, assetService: assetService)
+        let sut = createSUT(imageDomainModel: image,
+                            imageLoader: imageLoader)
         
-        sut.load()
-        sut.pause()
+        sut.loadImage()
+        sut.cancelImageLoad()
         
-        XCTAssertEqual(assetService.events.count, 2)
+        XCTAssertEqual(imageLoader.events.count, 2)
         
-        guard case let .cancelLoadingImage(cancelledDownloadToken) = assetService.events.last else {
+        guard case let .cancel(cancelledToken) = imageLoader.events.last else {
             XCTFail("Unexpected event")
             return
         }
         
         //the view model pauses the download it started, not whatever shares the URL
-        XCTAssertEqual(cancelledDownloadToken, downloadToken)
-        XCTAssertEqual(sut.state, .ready(description: image.url.absoluteString))
+        XCTAssertEqual(cancelledToken, token)
+        XCTAssertEqual(sut.state, .ready)
     }
     
     func test_givenNoAssetLoadInProgress_whenPauseIsCalled_thenNothingIsCancelled() {
-        let assetService = StubAssetService()
+        let imageLoader = StubImageLoader()
         
-        let sut = createSUT(assetService: assetService)
+        let sut = createSUT(imageLoader: imageLoader)
         
-        sut.pause()
+        sut.cancelImageLoad()
         
-        XCTAssertTrue(assetService.events.isEmpty)
+        XCTAssertTrue(imageLoader.events.isEmpty)
+    }
+    
+    func test_givenAssetServedFromTheCache_whenPauseIsCalled_thenNothingIsCancelled() {
+        let imageLoader = StubImageLoader()
+        
+        //a cache hit has nothing in flight, so the loader hands back no token
+        imageLoader.tokenToReturn = nil
+        
+        let sut = createSUT(imageLoader: imageLoader)
+        
+        sut.loadImage()
+        
+        guard case let .load(_, _, completionHandler) = imageLoader.events.first else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        let loadedImage = UIImage()
+        completionHandler(.success(loadedImage))
+        
+        sut.cancelImageLoad()
+        
+        XCTAssertEqual(imageLoader.events.count, 1)
+        XCTAssertEqual(sut.state, .loaded(loadedImage))
     }
     
     func test_givenPausedAssetLoad_whenLoadIsCalledAgain_thenTheAssetIsRequestedAgain() {
-        let assetService = StubAssetService()
+        let imageLoader = StubImageLoader()
         let image = ImageDomainModel.testData()
         
-        assetService.downloadTokenToReturn = DownloadToken(url: image.url)
+        imageLoader.tokenToReturn = LoadToken(url: image.url)
         
-        let sut = createSUT(imageDomainModel: image, assetService: assetService)
+        let sut = createSUT(imageDomainModel: image,
+                            imageLoader: imageLoader)
         
-        sut.load()
-        sut.pause()
-        sut.load()
+        sut.loadImage()
+        sut.cancelImageLoad()
+        sut.loadImage()
         
-        XCTAssertEqual(assetService.events.count, 3)
+        XCTAssertEqual(imageLoader.events.count, 3)
         
-        guard case .loadImage = assetService.events.last else {
+        guard case .load = imageLoader.events.last else {
             XCTFail("Unexpected event")
             return
         }
     }
-
 }
 
 extension ImageViewerViewModelTests {
     func createSUT(imageDomainModel: ImageDomainModel = .testData(),
-                   assetService: AssetService = StubAssetService()) -> ImageViewerViewModel {
+                   imageLoader: ImageLoader = StubImageLoader()) -> ImageViewerViewModel {
         ImageViewerViewModel(imageDomainModel: imageDomainModel,
-                             assetService: assetService)
+                             imageLoader: imageLoader)
     }
 }
