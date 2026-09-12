@@ -29,9 +29,6 @@ final class ImageGalleryViewModel {
     private let imageLoader: ImageLoader
     
     private var images = [ImageDomainModel]()
-    
-    //keyed by position in `images` - safe because `images` is only ever replaced wholesale
-    //and this is cleared at the same moment, so the indices can't drift apart
     private var imageViewerViewModels = [Int: ImageViewerViewModel]()
     
     // MARK: - Init
@@ -97,8 +94,6 @@ final class ImageGalleryViewModel {
             return
         }
         
-        //deliberately not `viewModel(at:)` - a page that never had a view model never
-        //started a load, so there is nothing to cancel and no reason to create one
         imageViewerViewModels[currentIndex]?.cancelImageLoad()
         
         currentIndex = index

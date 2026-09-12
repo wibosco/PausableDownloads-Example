@@ -26,6 +26,11 @@ struct DownloadToken: Hashable {
     }
 }
 
+enum DownloadError: Error {
+    case download(underlyingError: Error?)
+    case invalidData(underlyingError: Error?)
+}
+
 protocol Downloader {
     @discardableResult
     func download(_ url: URL,
@@ -35,11 +40,18 @@ protocol Downloader {
 
 final class DefaultDownloader: NSObject, Downloader {
     private final class Download {
+        enum DownloadStage: Equatable {
+            case ready                            //constructed, no task yet - lives for one `sync` block
+            case running
+            case pausing                          //cancel issued, resumption data hasn't landed yet
+            case paused
+        }
+        
         let url: URL
         
         private(set) var completionHandlers = [DownloadToken: DownloadCompletionHandler]()
         private(set) var stage: DownloadStage = .ready
-        private(set) var task: URLSessionDownloadTaskType?
+        private(set) var task: DownloadTask?
         private(set) var resumptionData: Data?
         
         // MARK: - Init
@@ -75,14 +87,14 @@ final class DefaultDownloader: NSObject, Downloader {
             stage == .ready || stage == .paused
         }
         
-        func markRunning(with task: URLSessionDownloadTaskType) {
+        func markRunning(with task: DownloadTask) {
             stage = .running
             self.task = task
             resumptionData = nil
         }
         
         //returns the task to cancel, or nil if there isn't one running
-        func markPausing() -> URLSessionDownloadTaskType? {
+        func markPausing() -> DownloadTask? {
             guard stage == .running,
                   let task = task else {
                 return nil
@@ -106,19 +118,12 @@ final class DefaultDownloader: NSObject, Downloader {
         }
     }
     
-    private enum DownloadStage: Equatable {
-        case ready                            //constructed, no task yet - lives for one `sync` block
-        case running
-        case pausing                          //cancel issued, resumption data hasn't landed yet
-        case paused
-    }
-    
     //one entry per URL - everybody who wants it coalesces onto the same download
     private var downloads = [URL: Download]()
     private let queue = DispatchQueue(label: "com.williamboles.downloader")
     
-    private let urlSessionFactory: URLSessionFactoryType
-    private lazy var session: URLSessionType = urlSessionFactory.defaultSession(delegate: self)
+    private let sessionFactory: DownloadSessionFactory
+    private lazy var session: DownloadSession = sessionFactory.makeSession(delegate: self)
     private let memoryPressureMonitor: MemoryPressureMonitor
     
     // MARK: - Singleton
@@ -127,9 +132,9 @@ final class DefaultDownloader: NSObject, Downloader {
     
     // MARK: - Init
     
-    init(urlSessionFactory: URLSessionFactoryType = URLSessionFactory(),
+    init(sessionFactory: DownloadSessionFactory = DefaultDownloadSessionFactory(),
          memoryPressureMonitor: MemoryPressureMonitor = DefaultMemoryPressureMonitor()) {
-        self.urlSessionFactory = urlSessionFactory
+        self.sessionFactory = sessionFactory
         self.memoryPressureMonitor = memoryPressureMonitor
         
         super.init()
@@ -193,7 +198,7 @@ final class DefaultDownloader: NSObject, Downloader {
     private func startDownload(_ download: Download) {
         dispatchPrecondition(condition: .onQueue(queue))
         
-        let task: URLSessionDownloadTaskType
+        let task: DownloadTask
         if let resumptionData = download.resumptionData {
             os_log(.info, "Resuming a paused download: %{public}@", download.url.absoluteString)
             task = session.downloadTask(withResumeData: resumptionData)
@@ -212,7 +217,7 @@ final class DefaultDownloader: NSObject, Downloader {
     func pause(_ token: DownloadToken) {
         let url = token.url
         
-        let taskToPause: URLSessionDownloadTaskType? = sync {
+        let taskToPause: DownloadTask? = sync {
             guard let download = downloads[url],
                   download.remove(token) else {
                 return nil
@@ -297,7 +302,7 @@ final class DefaultDownloader: NSObject, Downloader {
             
             os_log(.info, "Download completed for: %{public}@", url.absoluteString)
         } catch let error {
-            result = .failure(NetworkingError.invalidData(underlyingError: error))
+            result = .failure(DownloadError.invalidData(underlyingError: error))
             
             os_log(.error, "Download completed for: %{public}@ but its file could not be read: %{public}@", url.absoluteString, error.localizedDescription)
         }
@@ -318,7 +323,7 @@ final class DefaultDownloader: NSObject, Downloader {
         
         os_log(.error, "Download failed for: %{public}@ with error: %{public}@", url.absoluteString, error.localizedDescription)
         
-        deliverResult(.failure(NetworkingError.retrieval(underlyingError: error)),
+        deliverResult(.failure(DownloadError.download(underlyingError: error)),
                       for: url,
                       taskIdentifier: taskIdentifier)
     }

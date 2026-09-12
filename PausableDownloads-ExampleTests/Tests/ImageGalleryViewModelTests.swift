@@ -286,9 +286,8 @@ final class ImageGalleryViewModelTests: XCTestCase {
         //the download issued for imageB, which is the page being swiped away from
         XCTAssertEqual(pausedToken, tokenForImageB)
         
-        /* Rescheduling the same URL is what hands the paused download back to the
-         session to resume rather than restart.
-         */
+        //Rescheduling the same URL is what hands the paused download back to the
+        //session to resume rather than restart.
         guard case let .load(loadedImage, _, _) = imageLoader.events.last else {
             XCTFail("Unexpected event")
             return

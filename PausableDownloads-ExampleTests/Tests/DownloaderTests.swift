@@ -34,7 +34,7 @@ class DownloaderTests: XCTestCase {
         
         let memoryPressureMonitor = StubMemoryPressureMonitor()
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session, memoryPressureMonitor: memoryPressureMonitor)
         
         guard case let .startMonitoring(memoryPressureHandler) = memoryPressureMonitor.events.first else {
@@ -42,7 +42,7 @@ class DownloaderTests: XCTestCase {
             return
         }
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
         let downloadID = sut.download(url) { _ in }
@@ -63,7 +63,7 @@ class DownloaderTests: XCTestCase {
         memoryPressureHandler()
         
         //the purged item took its resumption data with it, so the next schedule starts over
-        session.downloadTaskWithResumeDataToReturn = StubURLSessionDownloadTask()
+        session.downloadTaskWithResumeDataToReturn = StubDownloadTask()
         
         sut.download(url) { _ in }
         
@@ -80,10 +80,10 @@ class DownloaderTests: XCTestCase {
         
         let memoryPressureMonitor = StubMemoryPressureMonitor()
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session, memoryPressureMonitor: memoryPressureMonitor)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
         guard case let .startMonitoring(memoryPressureHandler) = memoryPressureMonitor.events.first else {
@@ -110,10 +110,10 @@ class DownloaderTests: XCTestCase {
     func test_givenNoExistingDownload_whendownloadIsCalled_thenDownloadTaskIsCreatedForURLAndResumed() {
         let url = URL(string: "http://test.com/example")!
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
         sut.download(url) { _ in }
@@ -136,10 +136,10 @@ class DownloaderTests: XCTestCase {
     }
     
     func test_givenNoExistingDownloads_whendownloadIsCalledForTwoDifferentURLs_thenBothDownloadTasksAreResumed() {
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
         let urlA = URL(string: "http://example.com/resourceA")!
@@ -160,10 +160,10 @@ class DownloaderTests: XCTestCase {
     func test_givenInFlightDownload_whendownloadIsCalledForTheSameURL_thenOneDownloadIsSharedAndBothCompletionHandlersAreCalled() {
         let url = URL(string: "http://test.com/example")!
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
@@ -186,10 +186,10 @@ class DownloaderTests: XCTestCase {
     func test_givenTwoCallersForTheSameURL_whenOneIsPaused_thenTheSharedTaskIsNotCancelledAndTheOtherIsStillAnswered() {
         let url = URL(string: "http://test.com/example")!
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
@@ -218,10 +218,10 @@ class DownloaderTests: XCTestCase {
     func test_givenPausedDownloadThatProducedNoResumptionData_whendownloadIsCalledForTheSameURL_thenTheDownloadRestarts() {
         let url = URL(string: "http://test.com/example")!
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
         let downloadID = sut.download(url) { _ in }
@@ -258,10 +258,10 @@ class DownloaderTests: XCTestCase {
         let url = URL(string: "http://test.com/example")!
         let resumptionData = Data("resumption".utf8)
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
         let downloadID = sut.download(url) { _ in }
@@ -272,7 +272,7 @@ class DownloaderTests: XCTestCase {
             return
         }
         
-        let resumedDownloadTask = StubURLSessionDownloadTask()
+        let resumedDownloadTask = StubDownloadTask()
         session.downloadTaskWithResumeDataToReturn = resumedDownloadTask
         
         //rescheduling whilst the resumption data is still in flight - the fast swipe back
@@ -302,12 +302,12 @@ class DownloaderTests: XCTestCase {
     func test_givenACallerThatJoinedAPauseInFlight_whenItPausesBeforeTheResumptionDataLands_thenNoTaskIsEverStarted() {
         let url = URL(string: "http://test.com/example")!
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
-        session.downloadTaskWithResumeDataToReturn = StubURLSessionDownloadTask()
+        session.downloadTaskWithResumeDataToReturn = StubDownloadTask()
         
         let firstDownloadID = sut.download(url) { _ in }
         sut.pause(firstDownloadID)
@@ -333,10 +333,10 @@ class DownloaderTests: XCTestCase {
     func test_givenPausedDownload_whenTheCancelledDownloadTaskCompletes_thenTheCompletionHandlerIsNotCalled() {
         let url = URL(string: "http://test.com/example")!
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
@@ -360,10 +360,10 @@ class DownloaderTests: XCTestCase {
         let url = URL(string: "http://test.com/example")!
         let fileURL = try XCTUnwrap(Bundle(for: type(of: self)).url(forResource: "square", withExtension: "pdf"))
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
@@ -386,10 +386,10 @@ class DownloaderTests: XCTestCase {
     func test_givenScheduledDownload_whenTheDownloadTaskFails_thenTheCompletionHandlerIsCalled() {
         let url = URL(string: "http://test.com/example")!
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
@@ -412,10 +412,10 @@ class DownloaderTests: XCTestCase {
         let url = URL(string: "http://test.com/example")!
         let resumptionData = Data("resumption".utf8)
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
         let downloadID = sut.download(url) { _ in }
@@ -428,7 +428,7 @@ class DownloaderTests: XCTestCase {
         
         resumeDataHandler(resumptionData)
         
-        let resumedDownloadTask = StubURLSessionDownloadTask()
+        let resumedDownloadTask = StubDownloadTask()
         session.downloadTaskWithResumeDataToReturn = resumedDownloadTask
         
         sut.download(url) { _ in }
@@ -456,10 +456,10 @@ class DownloaderTests: XCTestCase {
         
         XCTAssertFalse(expectedData.isEmpty)
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
@@ -490,10 +490,10 @@ class DownloaderTests: XCTestCase {
     func test_givenScheduledDownload_whenTheDownloadTaskCompletesWithAnError_thenTheCompletionHandlerReceivesARetrievalFailure() throws {
         let url = URL(string: "http://test.com/example")!
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
@@ -514,7 +514,7 @@ class DownloaderTests: XCTestCase {
         waitForExpectations(timeout: 3, handler: nil)
         
         guard case let .failure(error) = try XCTUnwrap(receivedResult),
-              case let NetworkingError.retrieval(underlyingError) = error else {
+              case let DownloadError.download(underlyingError) = error else {
             XCTFail("Expected a retrieval failure")
             return
         }
@@ -526,10 +526,10 @@ class DownloaderTests: XCTestCase {
         let url = URL(string: "http://test.com/example")!
         let unreadableFileURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("does-not-exist-\(UUID().uuidString)")
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
@@ -550,7 +550,7 @@ class DownloaderTests: XCTestCase {
         waitForExpectations(timeout: 3, handler: nil)
         
         guard case let .failure(error) = try XCTUnwrap(receivedResult),
-              case NetworkingError.invalidData = error else {
+              case DownloadError.invalidData = error else {
             XCTFail("Expected an invalid data failure")
             return
         }
@@ -559,10 +559,10 @@ class DownloaderTests: XCTestCase {
     func test_givenPauseThenResume_whenTheCancelledDownloadTaskCompletes_thenItIsIgnoredAndTheResumedTaskStillCompletes() {
         let url = URL(string: "http://test.com/example")!
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let retiredDownloadTask = StubURLSessionDownloadTask()
+        let retiredDownloadTask = StubDownloadTask()
         retiredDownloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = retiredDownloadTask
         
@@ -576,7 +576,7 @@ class DownloaderTests: XCTestCase {
         
         resumeDataHandler(Data("resumption".utf8))
         
-        let resumedDownloadTask = StubURLSessionDownloadTask()
+        let resumedDownloadTask = StubDownloadTask()
         resumedDownloadTask.taskIdentifierToReturn = 2
         session.downloadTaskWithResumeDataToReturn = resumedDownloadTask
         
@@ -596,10 +596,10 @@ class DownloaderTests: XCTestCase {
     func test_givenNoMatchingDownload_whenAnEventForAnUnknownTaskIsReceived_thenItIsIgnored() {
         let url = URL(string: "http://test.com/example")!
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
@@ -622,10 +622,10 @@ class DownloaderTests: XCTestCase {
     func test_givenScheduledDownload_whenCancelDownloadIsCalled_thenDownloadTaskIsCancelledByProducingResumeData() {
         let url = URL(string: "http://test.com/example")!
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
         let downloadID = sut.download(url) { _ in }
@@ -642,10 +642,10 @@ class DownloaderTests: XCTestCase {
     func test_givenNoScheduledDownloads_whenCancelDownloadIsCalledForAnUnknownID_thenNoDownloadTaskEventsAreRecorded() {
         let url = URL(string: "http://test.com/example")!
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
         sut.pause(DownloadToken(url: url))
@@ -663,10 +663,10 @@ class DownloaderTests: XCTestCase {
         
         XCTAssertFalse(expectedData.isEmpty)
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
@@ -694,10 +694,10 @@ class DownloaderTests: XCTestCase {
     func test_givenTwoCallersForTheSameURL_whenBothPause_thenTheSharedTaskIsCancelledOnce() {
         let url = URL(string: "http://test.com/example")!
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
         let firstDownloadToken = sut.download(url) { _ in }
@@ -722,10 +722,10 @@ class DownloaderTests: XCTestCase {
     func test_givenTwoCallersJoinedAPauseInFlight_whenTheResumptionDataLands_thenOnlyOneTaskIsStarted() {
         let url = URL(string: "http://test.com/example")!
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
         let firstDownloadToken = sut.download(url) { _ in }
@@ -736,7 +736,7 @@ class DownloaderTests: XCTestCase {
             return
         }
         
-        let resumedTask = StubURLSessionDownloadTask()
+        let resumedTask = StubDownloadTask()
         resumedTask.taskIdentifierToReturn = 2
         session.downloadTaskWithResumeDataToReturn = resumedTask
         
@@ -768,10 +768,10 @@ class DownloaderTests: XCTestCase {
     func test_givenARetiredTaskThatFailsAfterTheDownloadWasResumed_whenItCompletes_thenTheResumedDownloadIsUnaffected() {
         let url = URL(string: "http://test.com/example")!
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
         
@@ -785,16 +785,15 @@ class DownloaderTests: XCTestCase {
         
         resumeDataHandler(Data("resumption".utf8))
         
-        let resumedTask = StubURLSessionDownloadTask()
+        let resumedTask = StubDownloadTask()
         resumedTask.taskIdentifierToReturn = 2
         session.downloadTaskWithResumeDataToReturn = resumedTask
         
         var results = [Result<Data, Error>]()
         sut.download(url) { results.append($0) }
         
-        /* The retired task winds down with a real error rather than a cancellation, so
-         nothing but the phase stops it being mistaken for the download now running.
-         */
+        //The retired task winds down with a real error rather than a cancellation, so
+        //nothing but the phase stops it being mistaken for the download now running.
         sut.handleFailedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, error: TestError.test)
         
         XCTAssertTrue(results.isEmpty)
@@ -809,7 +808,7 @@ class DownloaderTests: XCTestCase {
         
         let memoryPressureMonitor = StubMemoryPressureMonitor()
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session, memoryPressureMonitor: memoryPressureMonitor)
         
         guard case let .startMonitoring(memoryPressureHandler) = memoryPressureMonitor.events.first else {
@@ -817,7 +816,7 @@ class DownloaderTests: XCTestCase {
             return
         }
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
         let firstDownloadToken = sut.download(url) { _ in }
@@ -828,7 +827,7 @@ class DownloaderTests: XCTestCase {
             return
         }
         
-        let resumedTask = StubURLSessionDownloadTask()
+        let resumedTask = StubDownloadTask()
         resumedTask.taskIdentifierToReturn = 2
         session.downloadTaskWithResumeDataToReturn = resumedTask
         
@@ -855,10 +854,10 @@ class DownloaderTests: XCTestCase {
     func test_givenAPausedDownloadWithResumptionData_whenTwoCallersScheduleTheSameURL_thenTheResumptionDataIsUsedOnce() {
         let url = URL(string: "http://test.com/example")!
         
-        let session = StubURLSession()
+        let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
-        let downloadTask = StubURLSessionDownloadTask()
+        let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
         let firstDownloadToken = sut.download(url) { _ in }
@@ -871,7 +870,7 @@ class DownloaderTests: XCTestCase {
         
         resumeDataHandler(Data("resumption".utf8))
         
-        session.downloadTaskWithResumeDataToReturn = StubURLSessionDownloadTask()
+        session.downloadTaskWithResumeDataToReturn = StubDownloadTask()
         
         sut.download(url) { _ in }
         sut.download(url) { _ in }
@@ -887,18 +886,12 @@ class DownloaderTests: XCTestCase {
 }
 
 extension DownloaderTests {
-    func createSUT(session: StubURLSession = StubURLSession(),
+    func createSUT(session: StubDownloadSession = StubDownloadSession(),
                    memoryPressureMonitor: MemoryPressureMonitor = StubMemoryPressureMonitor()) -> DefaultDownloader {
-        let urlSessionFactory = StubURLSessionFactory()
-        urlSessionFactory.sessionToReturn = session
+        let sessionFactory = StubDownloadSessionFactory()
+        sessionFactory.sessionToReturn = session
         
-        return createSUT(urlSessionFactory: urlSessionFactory,
-                         memoryPressureMonitor: memoryPressureMonitor)
-    }
-    
-    func createSUT(urlSessionFactory: URLSessionFactoryType,
-                   memoryPressureMonitor: MemoryPressureMonitor = StubMemoryPressureMonitor()) -> DefaultDownloader {
-        DefaultDownloader(urlSessionFactory: urlSessionFactory,
-                                     memoryPressureMonitor: memoryPressureMonitor)
+        return DefaultDownloader(sessionFactory: sessionFactory,
+                                 memoryPressureMonitor: memoryPressureMonitor)
     }
 }

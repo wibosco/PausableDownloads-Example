@@ -8,47 +8,35 @@
 
 import Foundation
 
-class ImagesRepository {
-    private let urlRequestFactory: ImagesURLRequestFactory
-    private let session: URLSession
+protocol ImagesRepository {
+    func load(completionHandler: @escaping NetworkCompletionHandler<[ImageDTO]>)
+}
+
+final class DefaultImagesRepository {
+    private let networkService: NetworkService
     
     // MARK: - Init
     
-    init(session: URLSession = URLSession.shared,
-         urlRequestFactory: ImagesURLRequestFactory = ImagesURLRequestFactory()) {
-        self.session = session
-        self.urlRequestFactory = urlRequestFactory
+    init(networkService: NetworkService = DefaultNetworkService()) {
+        self.networkService = networkService
     }
     
     // MARK: - List
     
-    func retrieveImages(completionHandler: @escaping ((_ result: Result<[ImageDTO], Error>) -> ())) {
-        let request = urlRequestFactory.requestToRetrieveImages()
+    func load(completionHandler: @escaping NetworkCompletionHandler<[ImageDTO]>) {
+        networkService.makeJSONRequest(urlRequest(),
+                                       completionHandler: completionHandler)
+    }
+    
+    private func urlRequest() -> URLRequest {
+        let url = networkService.baseURL.appendingPathComponent("images/search")
         
-        let task = session.dataTask(with: request) { (data: Data?, response: URLResponse?, error: Error?) in
-            guard let data = data else {
-                let retrievalError = NetworkingError.retrieval(underlyingError: error)
-                completionHandler(Result.failure(retrievalError))
-                return
-            }
-            
-            guard let statusCode = (response as? HTTPURLResponse)?.statusCode,
-                (200..<300).contains(statusCode) else {
-                    let retrievalError = NetworkingError.retrieval(underlyingError: error)
-                    completionHandler(Result.failure(retrievalError))
-                    return
-            }
-            
-            do {
-                let dtos = try JSONDecoder().decode([ImageDTO].self, from: data)
-                
-                completionHandler(Result.success(dtos))
-            } catch let error {
-                let invalidError = NetworkingError.invalidData(underlyingError: error)
-                completionHandler(Result.failure(invalidError))
-            }
-        }
+        var components = URLComponents(url: url,
+                                       resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "limit", value: "10"),
+                                 URLQueryItem(name: "order", value: "RANDOM"),
+                                 URLQueryItem(name: "size", value: "full")]
         
-        task.resume()
+        return URLRequest(url: components.url!)
     }
 }

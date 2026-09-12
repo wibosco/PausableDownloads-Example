@@ -40,9 +40,8 @@ class ImageViewerViewController: UIViewController {
         
         viewModel.delegate = self
         
-        /* This page may well be being rebuilt around a view model that is already
-         loading or loaded, so render what is there rather than waiting for a change.
-         */
+        //This page may well be being rebuilt around a view model that is already
+        //loading or loaded, so render what is there rather than waiting for a change.
         render(viewModel.state)
     }
     

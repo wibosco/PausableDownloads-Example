@@ -16,6 +16,10 @@ typealias LoadImageCompletionHandler = (Result<UIImage, Error>) -> ()
 //underneath is the loader's business
 typealias LoadToken = DownloadToken
 
+enum ImageLoaderError: Error {
+    case invalidImageData
+}
+
 protocol ImageLoader {
     //returns nil when the image was served from the cache - nothing is in flight, so
     //there is nothing to cancel
@@ -96,7 +100,7 @@ final class DefaultImageLoader: ImageLoader {
                              cachingTo cacheURL: URL,
                              for imageDomainModel: ImageDomainModel) -> Result<UIImage, Error> {
         guard let image = UIImage(data: data) else {
-            return .failure(NetworkingError.invalidData(underlyingError: nil))
+            return .failure(ImageLoaderError.invalidImageData)
         }
         
         do {

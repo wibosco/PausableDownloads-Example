@@ -30,10 +30,9 @@ class ImageGalleryViewController: UIPageViewController {
     }
     
     private func configureNavigationBar() {
-        /* Paging in `.scroll` style puts a scroll view behind the bar, so without
-         this it adopts its transparent scroll-edge appearance and the position
-         indicator disappears against the black background.
-         */
+        //Paging in `.scroll` style puts a scroll view behind the bar, so without
+        //this it adopts its transparent scroll-edge appearance and the position
+        //indicator disappears against the black background.
         let appearance = UINavigationBarAppearance()
         appearance.configureWithOpaqueBackground()
         
@@ -107,9 +106,8 @@ extension ImageGalleryViewController: UIPageViewControllerDelegate {
                             didFinishAnimating finished: Bool,
                             previousViewControllers: [UIViewController],
                             transitionCompleted completed: Bool) {
-        /* Only a transition the user actually landed on should pause what came
-         before it - a cancelled swipe hasn't moved anywhere.
-         */
+        //Only a transition the user actually landed on should pause what came
+        //before it - a cancelled swipe hasn't moved anywhere.
         guard completed,
               let imageViewerViewController = viewControllers?.first as? ImageViewerViewController else {
             return

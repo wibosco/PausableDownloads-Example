@@ -198,7 +198,7 @@ final class ImageLoaderTests: XCTestCase {
         waitForExpectations(timeout: 3, handler: nil)
         
         guard case let .failure(error) = try XCTUnwrap(receivedResult),
-              case NetworkingError.invalidData = error else {
+              case ImageLoaderError.invalidImageData = error else {
             XCTFail("Expected an invalid data failure")
             return
         }

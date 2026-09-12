@@ -1,5 +1,5 @@
 //
-//  StubURLSessionDownloadTask.swift
+//  StubDownloadTask.swift
 //  PausableDownloads-ExampleTests
 //
 //  Created by William Boles on 13/12/2019.
@@ -10,10 +10,9 @@ import Foundation
 
 @testable import PausableDownloads_Example
 
-class StubURLSessionDownloadTask: URLSessionDownloadTaskType {
+class StubDownloadTask: DownloadTask {
     enum Event {
         case resume
-        case cancel
         case cancelByProducingResumeData((Data?) -> Void)
     }
     
@@ -29,10 +28,6 @@ class StubURLSessionDownloadTask: URLSessionDownloadTaskType {
     
     func resume() {
         events.append(.resume)
-    }
-    
-    func cancel() {
-        events.append(.cancel)
     }
     
     func cancel(byProducingResumeData completionHandler: @escaping (Data?) -> Void) {

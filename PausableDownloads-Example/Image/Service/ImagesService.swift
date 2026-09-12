@@ -16,12 +16,12 @@ protocol ImagesService {
 }
 
 final class DefaultImagesService: ImagesService {
-    private let repository: ImagesRepository
+    private let repository: DefaultImagesRepository
     private let domainModelFactory: ImagesDomainModelFactory
     
     // MARK: - Init
     
-    init(repository: ImagesRepository = ImagesRepository(),
+    init(repository: DefaultImagesRepository = DefaultImagesRepository(),
          domainModelFactory: ImagesDomainModelFactory = ImagesDomainModelFactory()) {
         self.repository = repository
         self.domainModelFactory = domainModelFactory
@@ -31,11 +31,11 @@ final class DefaultImagesService: ImagesService {
     
     func load(callbackQueue: DispatchQueue,
               completionHandler: @escaping LoadImagesCompletionHandler) {
-        repository.retrieveImages { [domainModelFactory] result in
+        repository.load { [domainModelFactory] result in
             //a failure passes straight through; a success is mapped from DTOs to domain models
-            let images = result.map { dtos in
-                dtos.map { domainModelFactory.buildImage(from: $0) }
-            }
+            let images = result
+                .map { dtos in dtos.map { domainModelFactory.buildImage(from: $0) } }
+                .mapError { $0 as Error }
             
             callbackQueue.async {
                 completionHandler(images)
