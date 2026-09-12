@@ -9,8 +9,16 @@
 import UIKit
 
 class ImageGalleryViewController: UIPageViewController {
+    private static let pagingButtonSize: CGFloat = 44
+    
     private let galleryViewModel = ImageGalleryViewModel()
     private let loadingActivityIndicator = UIActivityIndicatorView(style: .large)
+    private let previousButton = UIButton(type: .system)
+    private let nextButton = UIButton(type: .system)
+    
+    //setting a page whilst one is already on its way leaves `UIPageViewController` showing
+    //one page and reporting another, so taps that land mid-transition are ignored
+    private var isPaging = false
     
     // MARK: - ViewLifecycle
     
@@ -21,6 +29,7 @@ class ImageGalleryViewController: UIPageViewController {
         
         configureNavigationBar()
         configureLoadingActivityIndicator()
+        configurePagingButtons()
         
         dataSource = self
         delegate = self
@@ -30,9 +39,6 @@ class ImageGalleryViewController: UIPageViewController {
     }
     
     private func configureNavigationBar() {
-        //Paging in `.scroll` style puts a scroll view behind the bar, so without
-        //this it adopts its transparent scroll-edge appearance and the position
-        //indicator disappears against the black background.
         let appearance = UINavigationBarAppearance()
         appearance.configureWithOpaqueBackground()
         
@@ -50,7 +56,55 @@ class ImageGalleryViewController: UIPageViewController {
                                      loadingActivityIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)])
     }
     
+    private func configurePagingButtons() {
+        configure(previousButton,
+                  symbolName: "chevron.left",
+                  accessibilityLabel: "Previous image",
+                  action: #selector(previousButtonPressed))
+        configure(nextButton,
+                  symbolName: "chevron.right",
+                  accessibilityLabel: "Next image",
+                  action: #selector(nextButtonPressed))
+        
+        let safeArea = view.safeAreaLayoutGuide
+        
+        NSLayoutConstraint.activate([previousButton.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor, constant: 16),
+                                     previousButton.centerYAnchor.constraint(equalTo: safeArea.centerYAnchor),
+                                     safeArea.trailingAnchor.constraint(equalTo: nextButton.trailingAnchor, constant: 16),
+                                     nextButton.centerYAnchor.constraint(equalTo: safeArea.centerYAnchor)])
+    }
+    
+    private func configure(_ button: UIButton,
+                           symbolName: String,
+                           accessibilityLabel: String,
+                           action: Selector) {
+        let symbolConfiguration = UIImage.SymbolConfiguration(pointSize: 20,
+                                                              weight: .semibold)
+        
+        button.setImage(UIImage(systemName: symbolName, withConfiguration: symbolConfiguration),
+                        for: .normal)
+        button.tintColor = .label
+        button.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.6)
+        button.layer.cornerRadius = Self.pagingButtonSize / 2
+        button.accessibilityLabel = accessibilityLabel
+        button.isHidden = true
+        button.translatesAutoresizingMaskIntoConstraints = false
+        
+        button.addTarget(self,
+                         action: action,
+                         for: .touchUpInside)
+        
+        view.addSubview(button)
+        
+        NSLayoutConstraint.activate([button.widthAnchor.constraint(equalToConstant: Self.pagingButtonSize),
+                                     button.heightAnchor.constraint(equalToConstant: Self.pagingButtonSize)])
+    }
+    
     // MARK: - Pages
+    
+    private var currentIndex: Int? {
+        (viewControllers?.first as? ImageViewerViewController)?.index
+    }
     
     private func imageViewerViewController(at index: Int) -> ImageViewerViewController? {
         guard let viewModel = galleryViewModel.viewModel(at: index) else {
@@ -67,11 +121,66 @@ class ImageGalleryViewController: UIPageViewController {
         
         setViewControllers([viewController], direction: .forward, animated: false)
         
-        updateTitle(for: 0)
+        bringPagingButtonsToFront()
+        updatePagingControls(for: 0)
     }
     
-    private func updateTitle(for index: Int) {
+    // MARK: - Paging
+    
+    @objc private func previousButtonPressed() {
+        guard let currentIndex = currentIndex else {
+            return
+        }
+        
+        showImage(at: currentIndex - 1,
+                  direction: .reverse)
+    }
+    
+    @objc private func nextButtonPressed() {
+        guard let currentIndex = currentIndex else {
+            return
+        }
+        
+        showImage(at: currentIndex + 1,
+                  direction: .forward)
+    }
+    
+    private func showImage(at index: Int,
+                           direction: UIPageViewController.NavigationDirection) {
+        guard !isPaging,
+              let viewController = imageViewerViewController(at: index) else {
+            return
+        }
+        
+        isPaging = true
+        
+        setViewControllers([viewController], direction: direction, animated: true) { [weak self] _ in
+            self?.isPaging = false
+        }
+        
+        bringPagingButtonsToFront()
+        
+        //a page set in code doesn't reach `didFinishAnimating`, so landing on it has to
+        //be reported here instead
+        galleryViewModel.move(to: index)
+        updatePagingControls(for: index)
+    }
+    
+    private func bringPagingButtonsToFront() {
+        view.bringSubviewToFront(previousButton)
+        view.bringSubviewToFront(nextButton)
+    }
+    
+    private func updatePagingControls(for index: Int) {
         title = "\(index + 1) of \(galleryViewModel.numberOfImages)"
+        
+        previousButton.isHidden = index == 0
+        nextButton.isHidden = index >= (galleryViewModel.numberOfImages - 1)
+    }
+    
+    private func hidePagingButtons() {
+        previousButton.isHidden = true
+        nextButton.isHidden = true
     }
 }
 
@@ -103,9 +212,16 @@ extension ImageGalleryViewController: UIPageViewControllerDelegate {
     // MARK: - UIPageViewControllerDelegate
     
     func pageViewController(_ pageViewController: UIPageViewController,
+                            willTransitionTo pendingViewControllers: [UIViewController]) {
+        isPaging = true
+    }
+    
+    func pageViewController(_ pageViewController: UIPageViewController,
                             didFinishAnimating finished: Bool,
                             previousViewControllers: [UIViewController],
                             transitionCompleted completed: Bool) {
+        isPaging = false
+        
         //Only a transition the user actually landed on should pause what came
         //before it - a cancelled swipe hasn't moved anywhere.
         guard completed,
@@ -115,7 +231,7 @@ extension ImageGalleryViewController: UIPageViewControllerDelegate {
         
         galleryViewModel.move(to: imageViewerViewController.index)
         
-        updateTitle(for: imageViewerViewController.index)
+        updatePagingControls(for: imageViewerViewController.index)
     }
 }
 
@@ -128,6 +244,7 @@ extension ImageGalleryViewController: ImageGalleryViewModelDelegate {
         switch state {
         case .loading:
             loadingActivityIndicator.startAnimating()
+            hidePagingButtons()
         case .loaded:
             loadingActivityIndicator.stopAnimating()
             showFirstImage()
