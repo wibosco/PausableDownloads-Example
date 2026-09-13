@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v6
+    - name: Create Secrets.xcconfig
+      run: echo "CAT_API_KEY = ${{ secrets.CAT_API_KEY }}" > Secrets.xcconfig
     - name: List available Xcode versions
       run: ls /Applications | grep Xcode
     - name: Show current version of Xcode
