@@ -9,13 +9,8 @@
 import Foundation
 import os
 
-//called on whichever thread `URLSession` delivers on - callers hop to their own queue
 typealias DownloadCompletionHandler = (Result<Data, Error>) -> ()
 
-//identifies one caller's interest in a URL rather than one download, so several callers
-//can coalesce onto a single download of that URL and each pause and be answered
-//independently. The URL comes back with the token so a pause can go straight to the
-//download it belongs to
 struct DownloadToken: Hashable {
     let url: URL
     
@@ -27,7 +22,7 @@ struct DownloadToken: Hashable {
 }
 
 enum DownloadError: Error {
-    case download(underlyingError: Error?)
+    case failed(underlyingError: Error?)
     case invalidData(underlyingError: Error?)
 }
 
@@ -40,19 +35,17 @@ protocol Downloader {
 
 final class DefaultDownloader: NSObject, Downloader {
     private final class Download {
-        enum DownloadStage: Equatable {
+        enum DownloadStage {
             case ready                            //constructed, no task yet - lives for one `sync` block
-            case running
+            case running(DownloadTask)
             case pausing                          //cancel issued, resumption data hasn't landed yet
-            case paused
+            case paused(resumptionData: Data)
         }
         
         let url: URL
         
         private(set) var completionHandlers = [DownloadToken: DownloadCompletionHandler]()
         private(set) var stage: DownloadStage = .ready
-        private(set) var task: DownloadTask?
-        private(set) var resumptionData: Data?
         
         // MARK: - Init
         
@@ -69,34 +62,19 @@ final class DefaultDownloader: NSObject, Downloader {
             completionHandlers[token] = completionHandler
         }
         
-        //`true` when the token was one of ours
-        @discardableResult
         func remove(_ token: DownloadToken) -> Bool {
             completionHandlers.removeValue(forKey: token) != nil
         }
         
-        var hasCallers: Bool {
-            !completionHandlers.isEmpty
-        }
-        
         // MARK: - Stage
         
-        //a download only needs a task when nothing is already on its way - freshly
-        //constructed, or paused with resumption data waiting to be picked up
-        var needsTask: Bool {
-            stage == .ready || stage == .paused
-        }
-        
         func markRunning(with task: DownloadTask) {
-            stage = .running
-            self.task = task
-            resumptionData = nil
+            stage = .running(task)
         }
         
-        //returns the task to cancel, or nil if there isn't one running
+        //returns the task to cancel, or `nil` if there isn't one running
         func markPausing() -> DownloadTask? {
-            guard stage == .running,
-                  let task = task else {
+            guard case .running(let task) = stage else {
                 return nil
             }
             
@@ -106,15 +84,7 @@ final class DefaultDownloader: NSObject, Downloader {
         }
         
         func markPaused(with resumptionData: Data) {
-            stage = .paused
-            self.resumptionData = resumptionData
-            task = nil
-        }
-        
-        //a result only counts if it came from the task this download is currently running -
-        //not one it has since replaced, and not one that is winding down after a pause
-        func isAwaiting(taskIdentifier: Int) -> Bool {
-            stage == .running && task?.taskIdentifier == taskIdentifier
+            stage = .paused(resumptionData: resumptionData)
         }
     }
     
@@ -161,7 +131,13 @@ final class DefaultDownloader: NSObject, Downloader {
         sync {
             os_log(.info, "Purging paused items under memory pressure")
             
-            downloads = downloads.filter { $0.value.stage != .paused }
+            downloads = downloads.filter {
+                if case .paused = $0.value.stage {
+                    return false
+                }
+                
+                return true
+            }
         }
     }
     
@@ -173,20 +149,21 @@ final class DefaultDownloader: NSObject, Downloader {
         let token = DownloadToken(url: url)
         
         sync {
-            let download = downloads[url] ?? makeDownload(for: url)
+            let download = downloads[url] ?? registerDownload(for: url)
             download.add(completionHandler, for: token)
             
-            if download.needsTask {
+            switch download.stage {
+            case .ready, .paused:
                 startDownload(download)
-            } else {
-                os_log(.info, "Coalescing onto an existing active download of: %{public}@", url.absoluteString)
+            case .running, .pausing:
+                os_log(.info, "Coalescing download request onto an existing running download: %{public}@", url.absoluteString)
             }
         }
         
         return token
     }
     
-    private func makeDownload(for url: URL) -> Download {
+    private func registerDownload(for url: URL) -> Download {
         dispatchPrecondition(condition: .onQueue(queue))
         
         let download = Download(url: url)
@@ -199,11 +176,13 @@ final class DefaultDownloader: NSObject, Downloader {
         dispatchPrecondition(condition: .onQueue(queue))
         
         let task: DownloadTask
-        if let resumptionData = download.resumptionData {
+        if case .paused(let resumptionData) = download.stage {
             os_log(.info, "Resuming a paused download: %{public}@", download.url.absoluteString)
+
             task = session.downloadTask(withResumeData: resumptionData)
         } else {
             os_log(.info, "Starting a new download: %{public}@", download.url.absoluteString)
+
             task = session.downloadTask(with: download.url)
         }
         
@@ -218,17 +197,30 @@ final class DefaultDownloader: NSObject, Downloader {
         let url = token.url
         
         let taskToPause: DownloadTask? = sync {
-            guard let download = downloads[url],
-                  download.remove(token) else {
+            guard let download = downloads[url] else {
+                os_log(.info, "Download not found for URL: %{public}@", url.absoluteString)
+                
                 return nil
             }
             
-            guard !download.hasCallers else {
+            guard download.remove(token) else {
+                os_log(.info, "Token doesn't belong to the download of: %{public}@", url.absoluteString)
+                
+                return nil
+            }
+            
+            guard download.completionHandlers.isEmpty else {
                 os_log(.info, "Dropping a coalesced caller from a download others still want: %{public}@", url.absoluteString)
+                
                 return nil
             }
             
             guard let task = download.markPausing() else {
+                //the download is already pausing or paused, so there's no task to cancel.
+                //The caller has been removed, so when the resumption data lands
+                //`finishPausing` will find nobody waiting and leave the download paused
+                os_log(.info, "Download isn't running so there is nothing to pause: %{public}@", url.absoluteString)
+                
                 return nil
             }
             
@@ -250,26 +242,44 @@ final class DefaultDownloader: NSObject, Downloader {
     private func finishPausing(for url: URL,
                                resumptionData: Data?) {
         sync {
-            guard let download = downloads[url],
-                  download.stage == .pausing else {
-                os_log(.info, "Ignoring resumption data for a download that is no longer pausing: %{public}@", url.absoluteString)
+            guard let download = downloads[url] else {
+                os_log(.info, "Can't find the download being paused: %{public}@", url.absoluteString)
+                
                 return
             }
             
-            if let resumptionData = resumptionData {
-                os_log(.info, "Cancelled download task has produced %{public}d bytes of resumption data for %{public}@", resumptionData.count, url.absoluteString)
+            guard case .pausing = download.stage else {
+                os_log(.info, "Download is no longer pausing: %{public}@", url.absoluteString)
                 
-                download.markPaused(with: resumptionData)
+                return
             }
             
-            if download.hasCallers {
-                //whilst this download was being paused another request came in for it, so
-                //pick it straight back up - from the resumption data if there was any
-                os_log(.info, "Restarting download: %{public}@", url.absoluteString)
+            //two things decide what happens next: whether the cancelled task managed to
+            //produce resumption data, and whether anybody asked for this download whilst
+            //it was being paused
+            switch (resumptionData, !download.completionHandlers.isEmpty) {
+            case (.some(let resumptionData), false):
+                os_log(.info, "Paused download with %{public}d bytes of resumption data: %{public}@", resumptionData.count, url.absoluteString)
+                
+                download.markPaused(with: resumptionData)
+                
+            case (.some(let resumptionData), true):
+                os_log(.info, "Restarting download from %{public}d bytes of resumption data: %{public}@", resumptionData.count, url.absoluteString)
+                
+                download.markPaused(with: resumptionData)
+                startDownload(download)
+                
+            case (nil, true):
+                //nothing to resume from, so the new caller gets a download from scratch
+                os_log(.info, "Restarting download from scratch as pausing produced no resumption data: %{public}@", url.absoluteString)
                 
                 startDownload(download)
-            } else if resumptionData == nil {
-                os_log(.error, "Dropping a paused download that produced no resumption data: %{public}@", url.absoluteString)
+                
+            case (nil, false):
+                //nothing to resume from and nobody waiting - keeping the entry would leave it
+                //stuck at `pausing`, where the next caller would coalesce onto it and never
+                //be answered
+                os_log(.error, "Dropping a pausing download that produced no resumption data: %{public}@", url.absoluteString)
                 
                 downloads[url] = nil
             }
@@ -281,6 +291,14 @@ final class DefaultDownloader: NSObject, Downloader {
     func handleProgress(for url: URL,
                         totalBytesWritten: Int64,
                         expectedTotalBytes: Int64) {
+        //`URLSession` reports `NSURLSessionTransferSizeUnknown` (-1) when the server
+        //doesn't say how big the file is
+        guard expectedTotalBytes > 0 else {
+            os_log(.info, "Downloaded %{public}lld bytes of %{public}@ (total size unknown)", totalBytesWritten, url.absoluteString)
+            
+            return
+        }
+        
         let downloadedPercentage = (Double(totalBytesWritten)/Double(expectedTotalBytes)) * 100
         os_log(.info, "Downloaded %{public}.02f%% of %{public}@", downloadedPercentage, url.absoluteString)
     }
@@ -288,13 +306,26 @@ final class DefaultDownloader: NSObject, Downloader {
     func handleResumption(for url: URL,
                           fileOffset: Int64,
                           expectedTotalBytes: Int64) {
+        guard expectedTotalBytes > 0 else {
+            os_log(.info, "Resuming download: %{public}@ from: %{public}lld bytes (total size unknown)", url.absoluteString, fileOffset)
+            
+            return
+        }
+        
         let resumptionPercentage = (Double(fileOffset)/Double(expectedTotalBytes)) * 100
         os_log(.info, "Resuming download: %{public}@ from: %{public}.02f%%", url.absoluteString, resumptionPercentage)
     }
     
+    //once the download has been removed it is finished whatever happens next, so a file
+    //that can't be read is delivered as a failure rather than left lingering
     func handleFinishedDownloading(for url: URL,
                                    taskIdentifier: Int,
                                    to location: URL) {
+        guard let download = removeRunningDownload(for: url,
+                                                   taskIdentifier: taskIdentifier) else {
+            return
+        }
+        
         //`location` is only valid until this delegate call returns, so read it now
         let result: Result<Data, Error>
         do {
@@ -308,8 +339,7 @@ final class DefaultDownloader: NSObject, Downloader {
         }
         
         deliverResult(result,
-                      for: url,
-                      taskIdentifier: taskIdentifier)
+                      for: download)
     }
     
     func handleFailedDownloading(for url: URL,
@@ -318,34 +348,54 @@ final class DefaultDownloader: NSObject, Downloader {
         //a pause or a purge cancels the task; that isn't a failure anybody asked about
         if let error = error as? URLError, error.code == .cancelled {
             os_log(.info, "Ignoring the cancellation of task: %{public}d", taskIdentifier)
+            
+            return
+        }
+        
+        guard let download = removeRunningDownload(for: url,
+                                                   taskIdentifier: taskIdentifier) else {
             return
         }
         
         os_log(.error, "Download failed for: %{public}@ with error: %{public}@", url.absoluteString, error.localizedDescription)
         
-        deliverResult(.failure(DownloadError.download(underlyingError: error)),
-                      for: url,
-                      taskIdentifier: taskIdentifier)
+        deliverResult(.failure(DownloadError.failed(underlyingError: error)),
+                      for: download)
     }
     
-    //the result is made once and handed to everybody who coalesced onto this download
-    private func deliverResult(_ result: Result<Data, Error>,
-                               for url: URL,
-                               taskIdentifier: Int) {
-        let completionHandlers: [DownloadCompletionHandler] = sync {
-            guard let download = downloads[url],
-                  download.isAwaiting(taskIdentifier: taskIdentifier) else {
-                os_log(.info, "Ignoring a result for a task this downloader isn't waiting on: %{public}d", taskIdentifier)
-                return []
+    private func removeRunningDownload(for url: URL,
+                                       taskIdentifier: Int) -> Download? {
+        sync {
+            guard let download = downloads[url] else {
+                os_log(.info, "Download not found for URL: %{public}@", url.absoluteString)
+                
+                return nil
             }
             
-            downloads[url] = nil
+            guard case .running(let task) = download.stage else {
+                os_log(.info, "Download isn't running: %{public}@", url.absoluteString)
+                
+                return nil
+            }
             
-            return Array(download.completionHandlers.values)
+            guard task.taskIdentifier == taskIdentifier else {
+                os_log(.info, "Download isn't associated with task: %{public}d", taskIdentifier)
+                
+                return nil
+            }
+
+            downloads[url] = nil
+
+            return download
         }
-        
-        //can't happen within `sync` in case the callee blocks the thread
-        completionHandlers.forEach { $0(result) }
+    }
+    
+    //the result is made once and handed to everybody who coalesced onto the download.
+    //Can't happen within `sync` in case a callee blocks the thread - and doesn't need to,
+    //as the download has already been removed so nobody else can be touching it
+    private func deliverResult(_ result: Result<Data, Error>,
+                               for download: Download) {
+        download.completionHandlers.values.forEach { $0(result) }
     }
 }
 
