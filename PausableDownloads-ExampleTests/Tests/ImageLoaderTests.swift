@@ -40,7 +40,7 @@ final class ImageLoaderTests: XCTestCase {
         let downloader = StubDownloader()
         
         let image = ImageDomainModel.testData()
-        let token = DownloadToken(url: image.url)
+        let token = DownloadToken()
         downloader.tokenToReturn = token
         
         let fileManager = StubFileManager()
@@ -65,7 +65,7 @@ final class ImageLoaderTests: XCTestCase {
     
     func test_givenDownloadInProgress_whenItCompletesWithImageData_thenTheImageIsDeliveredOnTheCallbackQueue() throws {
         let downloader = StubDownloader()
-        downloader.tokenToReturn = DownloadToken(url: ImageDomainModel.testData().url)
+        downloader.tokenToReturn = DownloadToken()
         
         let fileManager = StubFileManager()
         fileManager.urlsToReturn = [cacheDirectory]
@@ -105,7 +105,7 @@ final class ImageLoaderTests: XCTestCase {
         
         let image = ImageDomainModel.testData(identifier: "a",
                                               url: URL(string: "http://test.com/a.jpg")!)
-        downloader.tokenToReturn = DownloadToken(url: image.url)
+        downloader.tokenToReturn = DownloadToken()
         
         let fileManager = StubFileManager()
         fileManager.urlsToReturn = [cacheDirectory]
@@ -172,7 +172,7 @@ final class ImageLoaderTests: XCTestCase {
     
     func test_givenDownloadInProgress_whenItCompletesWithDataThatIsNotAnImage_thenAnInvalidDataFailureIsDelivered() throws {
         let downloader = StubDownloader()
-        downloader.tokenToReturn = DownloadToken(url: ImageDomainModel.testData().url)
+        downloader.tokenToReturn = DownloadToken()
         
         let fileManager = StubFileManager()
         fileManager.urlsToReturn = [cacheDirectory]
@@ -206,7 +206,7 @@ final class ImageLoaderTests: XCTestCase {
     
     func test_givenDownloadInProgress_whenItFails_thenTheFailureIsPassedOn() throws {
         let downloader = StubDownloader()
-        downloader.tokenToReturn = DownloadToken(url: ImageDomainModel.testData().url)
+        downloader.tokenToReturn = DownloadToken()
         
         let fileManager = StubFileManager()
         fileManager.urlsToReturn = [cacheDirectory]
@@ -241,11 +241,11 @@ final class ImageLoaderTests: XCTestCase {
     
     // MARK: Cancel
     
-    func test_givenLoadInProgress_whenCancelIsCalled_thenTheDownloadIsPaused() throws {
+    func test_givenLoadInProgress_whenCancelIsCalled_thenTheDownloadIsCancelled() throws {
         let downloader = StubDownloader()
         
         let image = ImageDomainModel.testData()
-        let token = DownloadToken(url: image.url)
+        let token = DownloadToken()
         downloader.tokenToReturn = token
         
         let fileManager = StubFileManager()
@@ -261,12 +261,12 @@ final class ImageLoaderTests: XCTestCase {
         
         XCTAssertEqual(downloader.events.count, 2)
         
-        guard case let .pause(pausedToken) = downloader.events.last else {
+        guard case let .cancel(cancelledToken) = downloader.events.last else {
             XCTFail("Unexpected event")
             return
         }
-        
-        XCTAssertEqual(pausedToken, token)
+    
+        XCTAssertEqual(cancelledToken, token)
     }
 }
 

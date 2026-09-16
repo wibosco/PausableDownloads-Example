@@ -13,6 +13,7 @@
 		3D63CC58204B554700797A82 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3D63CC2F204B554700797A82 /* Main.storyboard */; };
 		3D63CC5E204B554700797A82 /* ImageViewerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D63CC3E204B554700797A82 /* ImageViewerViewController.swift */; };
 		3D63CC5F204B554700797A82 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D63CC40204B554700797A82 /* AppDelegate.swift */; };
+		33B8A6DD8FB341723FE4243D /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B72A6226D3CAAF28E805BE26 /* SceneDelegate.swift */; };
 		437C0CB43051EC36009529DF /* ImageDTO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0CAB3051EC36009529DF /* ImageDTO.swift */; };
 		437C0CB63051EC36009529DF /* ImagesRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0CAC3051EC36009529DF /* ImagesRepository.swift */; };
 		437C0D413051F9F3009529DF /* StubImagesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C0D403051F9F3009529DF /* StubImagesService.swift */; };
@@ -62,6 +63,7 @@
 		3D63CC30204B554700797A82 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		3D63CC3E204B554700797A82 /* ImageViewerViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ImageViewerViewController.swift; sourceTree = "<group>"; };
 		3D63CC40204B554700797A82 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		B72A6226D3CAAF28E805BE26 /* SceneDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		3D63CC41204B554700797A82 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		3D63CC75204B555300797A82 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		3DE07FC91FFF0F31003C95C0 /* PausableDownloads-Example.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "PausableDownloads-Example.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -178,6 +180,7 @@
 			isa = PBXGroup;
 			children = (
 				3D63CC40204B554700797A82 /* AppDelegate.swift */,
+				B72A6226D3CAAF28E805BE26 /* SceneDelegate.swift */,
 				3D63CC41204B554700797A82 /* Info.plist */,
 			);
 			path = Application;
@@ -453,6 +456,7 @@
 				43A2000030700003009529DF /* DownloadSessionFactory.swift in Sources */,
 				439551473055E52E00FE65F7 /* MemoryPressureMonitor.swift in Sources */,
 				3D63CC5F204B554700797A82 /* AppDelegate.swift in Sources */,
+				33B8A6DD8FB341723FE4243D /* SceneDelegate.swift in Sources */,
 				3D63CC5E204B554700797A82 /* ImageViewerViewController.swift in Sources */,
 				437C0D5B3051EDA0009529DF /* ImageViewerViewModel.swift in Sources */,
 				4395514F3055E55500FE65F7 /* ImageLoader.swift in Sources */,
@@ -572,7 +576,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
@@ -630,7 +634,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -653,8 +657,12 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.williamboles.PausableDownloads-Example";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -670,8 +678,12 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.williamboles.PausableDownloads-Example";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};

@@ -29,7 +29,7 @@ class StubDownloadTask: DownloadTask {
     func resume() {
         events.append(.resume)
     }
-    
+
     func cancel(byProducingResumeData completionHandler: @escaping (Data?) -> Void) {
         events.append(.cancelByProducingResumeData(completionHandler))
     }

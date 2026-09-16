@@ -75,7 +75,7 @@ final class DefaultImageLoader: ImageLoader {
     // MARK: - Cancel
     
     func cancel(_ token: LoadToken) {
-        downloader.pause(token)
+        downloader.cancel(token)
     }
     
     // MARK: - Cache

@@ -13,7 +13,7 @@ import Foundation
 final class StubDownloader: Downloader {
     enum Event {
         case download(URL, DownloadCompletionHandler)
-        case pause(DownloadToken)
+        case cancel(DownloadToken)
     }
     
     private(set) var events = [Event]()
@@ -27,7 +27,7 @@ final class StubDownloader: Downloader {
         return tokenToReturn
     }
     
-    func pause(_ token: DownloadToken) {
-        events.append(.pause(token))
+    func cancel(_ token: DownloadToken) {
+        events.append(.cancel(token))
     }
 }

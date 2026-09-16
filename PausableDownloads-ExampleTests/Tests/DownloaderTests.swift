@@ -45,11 +45,11 @@ class DownloaderTests: XCTestCase {
         let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        let downloadID = sut.download(url) { _ in }
+        let downloadToken = sut.download(url) { _ in }
         
         XCTAssertEqual(session.events.count, 1)
         
-        sut.pause(downloadID)
+        sut.cancel(downloadToken)
         
         XCTAssertEqual(downloadTask.events.count, 2)
         
@@ -183,7 +183,7 @@ class DownloaderTests: XCTestCase {
         XCTAssertEqual(secondResults.count, 1)
     }
     
-    func test_givenTwoCallersForTheSameURL_whenOneIsPaused_thenTheSharedTaskIsNotCancelledAndTheOtherIsStillAnswered() {
+    func test_givenTwoCallersForTheSameURL_whenOneCancels_thenTheSharedTaskIsNotCancelledAndTheOtherIsStillAnswered() throws {
         let url = URL(string: "http://test.com/example")!
         
         let session = StubDownloadSession()
@@ -199,7 +199,7 @@ class DownloaderTests: XCTestCase {
         var secondResults = [Result<Data, Error>]()
         sut.download(url) { secondResults.append($0) }
         
-        sut.pause(firstDownloadToken)
+        sut.cancel(firstDownloadToken)
         
         //the second caller still wants this URL, so the shared task keeps running
         XCTAssertEqual(downloadTask.events.count, 1)
@@ -208,11 +208,21 @@ class DownloaderTests: XCTestCase {
             XCTFail("Expected the shared download not to be cancelled")
             return
         }
-        
+
+        //the caller that cancelled is answered there and then rather than being left waiting
+        XCTAssertEqual(firstResults.count, 1)
+
+        guard case let .failure(error) = try XCTUnwrap(firstResults.first),
+              case DownloadError.cancelled = error else {
+            XCTFail("Expected a cancellation failure")
+            return
+        }
+
         sut.handleFailedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, error: TestError.test)
-        
+
+        //only the caller still waiting hears about how the download itself ended
         XCTAssertEqual(secondResults.count, 1)
-        XCTAssertTrue(firstResults.isEmpty)
+        XCTAssertEqual(firstResults.count, 1)
     }
     
     func test_givenPausedDownloadThatProducedNoResumptionData_whendownloadIsCalledForTheSameURL_thenTheDownloadRestarts() {
@@ -224,8 +234,8 @@ class DownloaderTests: XCTestCase {
         let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        let downloadID = sut.download(url) { _ in }
-        sut.pause(downloadID)
+        let downloadToken = sut.download(url) { _ in }
+        sut.cancel(downloadToken)
         
         XCTAssertEqual(downloadTask.events.count, 2)
         
@@ -254,83 +264,77 @@ class DownloaderTests: XCTestCase {
         }
     }
     
-    func test_givenPauseStillProducingResumptionData_whendownloadIsCalledForTheSameURL_thenTheResumeWaitsForTheResumptionData() {
+    func test_givenAPauseStillProducingResumptionData_whendownloadIsCalledForTheSameURL_thenAFreshTaskIsStartedWithoutWaiting() {
         let url = URL(string: "http://test.com/example")!
-        let resumptionData = Data("resumption".utf8)
-        
+
         let session = StubDownloadSession()
         let sut = createSUT(session: session)
-        
+
         let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
-        
-        let downloadID = sut.download(url) { _ in }
-        sut.pause(downloadID)
-        
-        guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
+
+        let downloadToken = sut.download(url) { _ in }
+        sut.cancel(downloadToken)
+
+        guard case .cancelByProducingResumeData = downloadTask.events.last else {
             XCTFail("Unexpected event")
             return
         }
-        
-        let resumedDownloadTask = StubDownloadTask()
-        session.downloadTaskWithResumeDataToReturn = resumedDownloadTask
-        
-        //rescheduling whilst the resumption data is still in flight - the fast swipe back
+
+        //rescheduling whilst the resumption data is still in flight - the fast swipe back.
+        //Nothing is holding the download open for that data, so it starts over rather than
+        //leaving the caller waiting on data that may never arrive
         sut.download(url) { _ in }
-        
-        XCTAssertEqual(session.events.count, 1)
-        
-        resumeDataHandler(resumptionData)
-        
+
         XCTAssertEqual(session.events.count, 2)
-        
-        guard case let .downloadTaskWithResumeData(data) = session.events.last else {
-            XCTFail("Unexpected event")
-            return
-        }
-        
-        XCTAssertEqual(data, resumptionData)
-        
-        XCTAssertEqual(resumedDownloadTask.events.count, 1)
-        
-        guard case .resume = resumedDownloadTask.events.first else {
-            XCTFail("Unexpected event")
+
+        guard case .downloadTask = session.events.last else {
+            XCTFail("Expected a new download task rather than a resumed one")
             return
         }
     }
-    
-    func test_givenACallerThatJoinedAPauseInFlight_whenItPausesBeforeTheResumptionDataLands_thenNoTaskIsEverStarted() {
+
+    func test_givenARestartedDownload_whenTheEarlierPausesResumptionDataLands_thenItIsDiscarded() {
         let url = URL(string: "http://test.com/example")!
-        
+
         let session = StubDownloadSession()
         let sut = createSUT(session: session)
-        
+
         let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         session.downloadTaskWithResumeDataToReturn = StubDownloadTask()
-        
-        let firstDownloadID = sut.download(url) { _ in }
-        sut.pause(firstDownloadID)
-        
+
+        let downloadToken = sut.download(url) { _ in }
+        sut.cancel(downloadToken)
+
         guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
             XCTFail("Unexpected event")
             return
         }
-        
-        //scheduled whilst the pause is still in flight, so it joins rather than starting a task
-        let joinedDownloadToken = sut.download(url) { _ in }
-        
-        XCTAssertEqual(session.events.count, 1)
-        
-        sut.pause(joinedDownloadToken)
-        
+
+        let restartedDownloadToken = sut.download(url) { _ in }
+
+        XCTAssertEqual(session.events.count, 2)
+
+        //the download this data belonged to has already started over, so it is of no use
+        //to anybody by the time it lands
         resumeDataHandler(Data("resumption".utf8))
-        
-        //nothing was waiting on the data by the time it landed
-        XCTAssertEqual(session.events.count, 1)
+
+        XCTAssertEqual(session.events.count, 2)
+
+        //nor is it kept around for the next request to pick up
+        sut.cancel(restartedDownloadToken)
+        sut.download(url) { _ in }
+
+        XCTAssertEqual(session.events.count, 3)
+
+        guard case .downloadTask = session.events.last else {
+            XCTFail("Expected the discarded resumption data not to be used")
+            return
+        }
     }
     
-    func test_givenPausedDownload_whenTheCancelledDownloadTaskCompletes_thenTheCompletionHandlerIsNotCalled() {
+    func test_givenCancelledDownload_whenTheRetiredTaskReportsItsCancellation_thenTheCallerIsNotToldTwice() throws {
         let url = URL(string: "http://test.com/example")!
         
         let session = StubDownloadSession()
@@ -341,19 +345,28 @@ class DownloaderTests: XCTestCase {
         session.downloadTaskToReturn = downloadTask
         
         var results = [Result<Data, Error>]()
-        let downloadID = sut.download(url) { results.append($0) }
+        let downloadToken = sut.download(url) { results.append($0) }
         
         guard case .downloadTask = session.events.first else {
             XCTFail("Unexpected event")
             return
         }
         
-        sut.pause(downloadID)
-        
+        sut.cancel(downloadToken)
+
+        //the cancel itself is what answers the caller
+        XCTAssertEqual(results.count, 1)
+
+        guard case let .failure(error) = try XCTUnwrap(results.first),
+              case DownloadError.cancelled = error else {
+            XCTFail("Expected a cancellation failure")
+            return
+        }
+
         //pausing cancels the underlying task, which reports back as a cancellation error
         sut.handleFailedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, error: URLError(.cancelled))
-        
-        XCTAssertTrue(results.isEmpty)
+
+        XCTAssertEqual(results.count, 1)
     }
     
     func test_givenCompletedDownload_whendownloadIsCalledForTheSameURL_thenANewDownloadTaskIsCreated() throws {
@@ -418,8 +431,8 @@ class DownloaderTests: XCTestCase {
         let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        let downloadID = sut.download(url) { _ in }
-        sut.pause(downloadID)
+        let downloadToken = sut.download(url) { _ in }
+        sut.cancel(downloadToken)
         
         guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
             XCTFail("Unexpected event")
@@ -514,7 +527,7 @@ class DownloaderTests: XCTestCase {
         waitForExpectations(timeout: 3, handler: nil)
         
         guard case let .failure(error) = try XCTUnwrap(receivedResult),
-              case let DownloadError.download(underlyingError) = error else {
+              case let DownloadError.failed(underlyingError) = error else {
             XCTFail("Expected a retrieval failure")
             return
         }
@@ -566,8 +579,8 @@ class DownloaderTests: XCTestCase {
         retiredDownloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = retiredDownloadTask
         
-        let downloadID = sut.download(url) { _ in }
-        sut.pause(downloadID)
+        let downloadToken = sut.download(url) { _ in }
+        sut.cancel(downloadToken)
         
         guard case let .cancelByProducingResumeData(resumeDataHandler) = retiredDownloadTask.events.last else {
             XCTFail("Unexpected event")
@@ -619,7 +632,7 @@ class DownloaderTests: XCTestCase {
     
     // MARK: Cancel
     
-    func test_givenScheduledDownload_whenCancelDownloadIsCalled_thenDownloadTaskIsCancelledByProducingResumeData() {
+    func test_givenScheduledDownload_whenCancelIsCalled_thenDownloadTaskIsCancelledByProducingResumeData() {
         let url = URL(string: "http://test.com/example")!
         
         let session = StubDownloadSession()
@@ -628,8 +641,8 @@ class DownloaderTests: XCTestCase {
         let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        let downloadID = sut.download(url) { _ in }
-        sut.pause(downloadID)
+        let downloadToken = sut.download(url) { _ in }
+        sut.cancel(downloadToken)
         
         XCTAssertEqual(downloadTask.events.count, 2)
         
@@ -639,16 +652,37 @@ class DownloaderTests: XCTestCase {
         }
     }
     
-    func test_givenNoScheduledDownloads_whenCancelDownloadIsCalledForAnUnknownID_thenNoDownloadTaskEventsAreRecorded() {
+    func test_givenScheduledDownload_whenCancelIsCalled_thenTheCallerIsToldItWasCancelled() throws {
         let url = URL(string: "http://test.com/example")!
-        
+
+        let session = StubDownloadSession()
+        let sut = createSUT(session: session)
+
+        let downloadTask = StubDownloadTask()
+        session.downloadTaskToReturn = downloadTask
+
+        var results = [Result<Data, Error>]()
+        let downloadToken = sut.download(url) { results.append($0) }
+
+        sut.cancel(downloadToken)
+
+        XCTAssertEqual(results.count, 1)
+
+        guard case let .failure(error) = try XCTUnwrap(results.first),
+              case DownloadError.cancelled = error else {
+            XCTFail("Expected a cancellation failure")
+            return
+        }
+    }
+
+    func test_givenNoScheduledDownloads_whenCancelIsCalledForAnUnknownToken_thenNoDownloadTaskEventsAreRecorded() {
         let session = StubDownloadSession()
         let sut = createSUT(session: session)
         
         let downloadTask = StubDownloadTask()
         session.downloadTaskToReturn = downloadTask
         
-        sut.pause(DownloadToken(url: url))
+        sut.cancel(DownloadToken())
         
         XCTAssertTrue(session.events.isEmpty)
         XCTAssertTrue(downloadTask.events.isEmpty)
@@ -691,7 +725,7 @@ class DownloaderTests: XCTestCase {
         XCTAssertEqual(secondData, expectedData)
     }
     
-    func test_givenTwoCallersForTheSameURL_whenBothPause_thenTheSharedTaskIsCancelledOnce() {
+    func test_givenTwoCallersForTheSameURL_whenBothCancel_thenTheSharedTaskIsCancelledOnce() {
         let url = URL(string: "http://test.com/example")!
         
         let session = StubDownloadSession()
@@ -703,12 +737,12 @@ class DownloaderTests: XCTestCase {
         let firstDownloadToken = sut.download(url) { _ in }
         let secondDownloadToken = sut.download(url) { _ in }
         
-        sut.pause(firstDownloadToken)
+        sut.cancel(firstDownloadToken)
         
         //somebody still wants it, so nothing is cancelled yet
         XCTAssertEqual(downloadTask.events.count, 1)
         
-        sut.pause(secondDownloadToken)
+        sut.cancel(secondDownloadToken)
         
         //the last interested caller has gone, so the shared task is cancelled exactly once
         XCTAssertEqual(downloadTask.events.count, 2)
@@ -719,48 +753,46 @@ class DownloaderTests: XCTestCase {
         }
     }
     
-    func test_givenTwoCallersJoinedAPauseInFlight_whenTheResumptionDataLands_thenOnlyOneTaskIsStarted() {
+    func test_givenAPauseStillProducingResumptionData_whenTwoCallersScheduleTheSameURL_thenTheyCoalesceOntoOneRestartedTask() {
         let url = URL(string: "http://test.com/example")!
-        
+
         let session = StubDownloadSession()
         let sut = createSUT(session: session)
-        
+
         let downloadTask = StubDownloadTask()
+        downloadTask.taskIdentifierToReturn = 1
         session.downloadTaskToReturn = downloadTask
-        
+
         let firstDownloadToken = sut.download(url) { _ in }
-        sut.pause(firstDownloadToken)
-        
-        guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
+        sut.cancel(firstDownloadToken)
+
+        guard case .cancelByProducingResumeData = downloadTask.events.last else {
             XCTFail("Unexpected event")
             return
         }
-        
-        let resumedTask = StubDownloadTask()
-        resumedTask.taskIdentifierToReturn = 2
-        session.downloadTaskWithResumeDataToReturn = resumedTask
-        
-        //both scheduled whilst the pause is still in flight, so both join it
+
+        let restartedDownloadTask = StubDownloadTask()
+        restartedDownloadTask.taskIdentifierToReturn = 2
+        session.downloadTaskToReturn = restartedDownloadTask
+
+        //both scheduled whilst the pause is still in flight, so the first starts the
+        //download over and the second coalesces onto it
         var secondResults = [Result<Data, Error>]()
         sut.download(url) { secondResults.append($0) }
-        
+
         var thirdResults = [Result<Data, Error>]()
         sut.download(url) { thirdResults.append($0) }
-        
-        XCTAssertEqual(session.events.count, 1)
-        
-        resumeDataHandler(Data("resumption".utf8))
-        
-        //one task serves both of them
+
         XCTAssertEqual(session.events.count, 2)
-        
-        guard case .downloadTaskWithResumeData = session.events.last else {
-            XCTFail("Expected a resumed download task")
+
+        guard case .downloadTask = session.events.last else {
+            XCTFail("Expected a new download task rather than a resumed one")
             return
         }
-        
-        sut.handleFailedDownloading(for: url, taskIdentifier: resumedTask.taskIdentifier, error: TestError.test)
-        
+
+        //one task serves both of them
+        sut.handleFailedDownloading(for: url, taskIdentifier: restartedDownloadTask.taskIdentifier, error: TestError.test)
+
         XCTAssertEqual(secondResults.count, 1)
         XCTAssertEqual(thirdResults.count, 1)
     }
@@ -776,7 +808,7 @@ class DownloaderTests: XCTestCase {
         session.downloadTaskToReturn = downloadTask
         
         let firstDownloadToken = sut.download(url) { _ in }
-        sut.pause(firstDownloadToken)
+        sut.cancel(firstDownloadToken)
         
         guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
             XCTFail("Unexpected event")
@@ -793,58 +825,11 @@ class DownloaderTests: XCTestCase {
         sut.download(url) { results.append($0) }
         
         //The retired task winds down with a real error rather than a cancellation, so
-        //nothing but the phase stops it being mistaken for the download now running.
+        //nothing but its task identifier stops it being mistaken for the download now
+        //running.
         sut.handleFailedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, error: TestError.test)
         
         XCTAssertTrue(results.isEmpty)
-        
-        sut.handleFailedDownloading(for: url, taskIdentifier: resumedTask.taskIdentifier, error: TestError.test)
-        
-        XCTAssertEqual(results.count, 1)
-    }
-    
-    func test_givenADownloadThatIsPausing_whenMemoryPressureIsReceived_thenAJoinedCallerIsStillAnswered() {
-        let url = URL(string: "http://test.com/example")!
-        
-        let memoryPressureMonitor = StubMemoryPressureMonitor()
-        
-        let session = StubDownloadSession()
-        let sut = createSUT(session: session, memoryPressureMonitor: memoryPressureMonitor)
-        
-        guard case let .startMonitoring(memoryPressureHandler) = memoryPressureMonitor.events.first else {
-            XCTFail("Unexpected event")
-            return
-        }
-        
-        let downloadTask = StubDownloadTask()
-        session.downloadTaskToReturn = downloadTask
-        
-        let firstDownloadToken = sut.download(url) { _ in }
-        sut.pause(firstDownloadToken)
-        
-        guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
-            XCTFail("Unexpected event")
-            return
-        }
-        
-        let resumedTask = StubDownloadTask()
-        resumedTask.taskIdentifierToReturn = 2
-        session.downloadTaskWithResumeDataToReturn = resumedTask
-        
-        var results = [Result<Data, Error>]()
-        sut.download(url) { results.append($0) }
-        
-        //purging must leave a pause in flight alone or the caller that joined it is stranded
-        memoryPressureHandler()
-        
-        resumeDataHandler(Data("resumption".utf8))
-        
-        XCTAssertEqual(session.events.count, 2)
-        
-        guard case .downloadTaskWithResumeData = session.events.last else {
-            XCTFail("Expected a resumed download task")
-            return
-        }
         
         sut.handleFailedDownloading(for: url, taskIdentifier: resumedTask.taskIdentifier, error: TestError.test)
         
@@ -861,7 +846,7 @@ class DownloaderTests: XCTestCase {
         session.downloadTaskToReturn = downloadTask
         
         let firstDownloadToken = sut.download(url) { _ in }
-        sut.pause(firstDownloadToken)
+        sut.cancel(firstDownloadToken)
         
         guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
             XCTFail("Unexpected event")

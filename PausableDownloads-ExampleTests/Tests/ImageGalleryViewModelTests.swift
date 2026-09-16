@@ -204,7 +204,7 @@ final class ImageGalleryViewModelTests: XCTestCase {
         let imageB = ImageDomainModel.testData(identifier: "b",
                                                url: URL(string: "http://test.com/b.jpg")!)
         
-        let tokenForImageA = LoadToken(url: imageA.url)
+        let tokenForImageA = LoadToken()
         imageLoader.tokenToReturn = tokenForImageA
         
         let sut = createSUT(imagesService: imagesService,
@@ -220,7 +220,7 @@ final class ImageGalleryViewModelTests: XCTestCase {
         completionHandler(.success([imageA, imageB]))
         
         //the token the next load hands back, so the paused one is identifiable
-        imageLoader.tokenToReturn = LoadToken(url: imageB.url)
+        imageLoader.tokenToReturn = LoadToken()
         
         sut.move(to: 1)
         
@@ -252,7 +252,7 @@ final class ImageGalleryViewModelTests: XCTestCase {
         let imageB = ImageDomainModel.testData(identifier: "b",
                                                url: URL(string: "http://test.com/b.jpg")!)
         
-        imageLoader.tokenToReturn = LoadToken(url: imageA.url)
+        imageLoader.tokenToReturn = LoadToken()
         
         let sut = createSUT(imagesService: imagesService,
                             imageLoader: imageLoader)
@@ -266,12 +266,12 @@ final class ImageGalleryViewModelTests: XCTestCase {
         
         completionHandler(.success([imageA, imageB]))
         
-        let tokenForImageB = LoadToken(url: imageB.url)
+        let tokenForImageB = LoadToken()
         imageLoader.tokenToReturn = tokenForImageB
         
         sut.move(to: 1)
         
-        imageLoader.tokenToReturn = LoadToken(url: imageA.url)
+        imageLoader.tokenToReturn = LoadToken()
         
         sut.move(to: 0)
         

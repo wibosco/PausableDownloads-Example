@@ -129,7 +129,7 @@ final class ImageViewerViewModelTests: XCTestCase {
         let image = ImageDomainModel.testData(identifier: "a",
                                               url: URL(string: "http://test.com/a.jpg")!)
         
-        let token = LoadToken(url: image.url)
+        let token = LoadToken()
         imageLoader.tokenToReturn = token
         
         let sut = createSUT(imageDomainModel: image,
@@ -188,7 +188,7 @@ final class ImageViewerViewModelTests: XCTestCase {
         let imageLoader = StubImageLoader()
         let image = ImageDomainModel.testData()
         
-        imageLoader.tokenToReturn = LoadToken(url: image.url)
+        imageLoader.tokenToReturn = LoadToken()
         
         let sut = createSUT(imageDomainModel: image,
                             imageLoader: imageLoader)
