@@ -14,23 +14,19 @@ protocol MemoryPressureMonitor {
 
 final class DefaultMemoryPressureMonitor: MemoryPressureMonitor {
     private let source: DispatchSourceMemoryPressure
-    private let queue: DispatchQueue
     
     // MARK: - Init
     
     init() {
-        let queue = DispatchQueue(label: "com.williamboles.memorypressure")
-        let source = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical],
-                                                             queue: queue)
-        self.queue = queue
-        self.source = source
+        source = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical],
+                                                         queue: DispatchQueue(label: "com.williamboles.memorypressure"))
+        source.activate()
     }
     
     // MARK: - Monitoring
     
     func startMonitoring(handler: @escaping () -> Void) {
         source.setEventHandler(handler: handler)
-        source.resume()
     }
     
     // MARK: - Deinit
