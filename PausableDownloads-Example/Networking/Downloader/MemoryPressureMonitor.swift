@@ -13,7 +13,7 @@ protocol MemoryPressureMonitor {
 }
 
 final class DefaultMemoryPressureMonitor: MemoryPressureMonitor {
-    private var source: DispatchSourceMemoryPressure
+    private let source: DispatchSourceMemoryPressure
     private let queue: DispatchQueue
     
     // MARK: - Init
