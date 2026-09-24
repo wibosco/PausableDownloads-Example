@@ -13,10 +13,6 @@ typealias DownloadCompletionHandler = (Result<Data, Error>) -> ()
 
 struct DownloadToken: Hashable {
     private let id = UUID()
-
-    // MARK: - Init
-
-    init() { }
 }
 
 enum DownloadError: Error {
