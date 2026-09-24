@@ -288,13 +288,6 @@ final class DefaultDownloader: NSObject, Downloader {
     func handleFailedDownloading(for url: URL,
                                  taskIdentifier: Int,
                                  error: Error) {
-        //a pause cancels the task; that isn't a failure anybody asked about
-        if let error = error as? URLError, error.code == .cancelled {
-            os_log(.info, "Ignoring the cancellation of task: %{public}d", taskIdentifier)
-            
-            return
-        }
-        
         guard let completionHandlers = clearDownload(for: url,
                                                      taskIdentifier: taskIdentifier) else {
             return

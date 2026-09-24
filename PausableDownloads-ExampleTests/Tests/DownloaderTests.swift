@@ -363,7 +363,9 @@ class DownloaderTests: XCTestCase {
             return
         }
 
-        //pausing cancels the underlying task, which reports back as a cancellation error
+        //pausing cancels the underlying task, which winds down late. The caller has
+        //already been answered by `cancel` and the download is gone, so there is nothing
+        //left for it to answer
         sut.handleFailedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, error: URLError(.cancelled))
 
         XCTAssertEqual(results.count, 1)
@@ -710,7 +712,8 @@ class DownloaderTests: XCTestCase {
         var results = [Result<Data, Error>]()
         sut.download(url) { results.append($0) }
         
-        //the task the pause retired winds down late and must not be mistaken for this download
+        //The task the pause retired winds down late, so nothing but its task identifier
+        //stops it being mistaken for the download now running.
         sut.handleFailedDownloading(for: url, taskIdentifier: retiredDownloadTask.taskIdentifier, error: URLError(.cancelled))
         
         XCTAssertTrue(results.isEmpty)
