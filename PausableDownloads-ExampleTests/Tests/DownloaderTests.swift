@@ -389,7 +389,7 @@ class DownloaderTests: XCTestCase {
             return
         }
         
-        sut.handleFinishedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, to: fileURL)
+        sut.handleFinishedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, statusCode: 200, to: fileURL)
         
         sut.download(url) { _ in }
         
@@ -488,7 +488,7 @@ class DownloaderTests: XCTestCase {
             return
         }
         
-        sut.handleFinishedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, to: fileURL)
+        sut.handleFinishedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, statusCode: 200, to: fileURL)
         
         waitForExpectations(timeout: 3, handler: nil)
         
@@ -500,7 +500,7 @@ class DownloaderTests: XCTestCase {
         XCTAssertEqual(data, expectedData)
     }
     
-    func test_givenScheduledDownload_whenTheDownloadTaskCompletesWithAnError_thenTheCompletionHandlerReceivesARetrievalFailure() throws {
+    func test_givenScheduledDownload_whenTheDownloadTaskCompletesWithAnError_thenTheCompletionHandlerReceivesATransportFailure() throws {
         let url = URL(string: "http://test.com/example")!
         
         let session = StubDownloadSession()
@@ -527,7 +527,7 @@ class DownloaderTests: XCTestCase {
         waitForExpectations(timeout: 3, handler: nil)
         
         guard case let .failure(error) = try XCTUnwrap(receivedResult),
-              case let DownloadError.failed(underlyingError) = error else {
+              case let DownloadError.transportFailure(underlyingError) = error else {
             XCTFail("Expected a retrieval failure")
             return
         }
@@ -535,7 +535,7 @@ class DownloaderTests: XCTestCase {
         XCTAssertEqual(underlyingError as? TestError, .test)
     }
     
-    func test_givenScheduledDownload_whenTheDownloadTaskCompletesWithAnUnreadableFileURL_thenTheCompletionHandlerReceivesAnInvalidDataFailure() throws {
+    func test_givenScheduledDownload_whenTheDownloadTaskCompletesWithAnUnreadableFileURL_thenTheCompletionHandlerReceivesAFileReadFailure() throws {
         let url = URL(string: "http://test.com/example")!
         let unreadableFileURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("does-not-exist-\(UUID().uuidString)")
         
@@ -558,13 +558,127 @@ class DownloaderTests: XCTestCase {
             return
         }
         
-        sut.handleFinishedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, to: unreadableFileURL)
+        sut.handleFinishedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, statusCode: 200, to: unreadableFileURL)
         
         waitForExpectations(timeout: 3, handler: nil)
         
         guard case let .failure(error) = try XCTUnwrap(receivedResult),
-              case DownloadError.invalidData = error else {
-            XCTFail("Expected an invalid data failure")
+              case DownloadError.fileReadFailed = error else {
+            XCTFail("Expected a file read failure")
+            return
+        }
+    }
+
+    func test_givenScheduledDownload_whenTheDownloadFinishesWithAnUnacceptableStatusCode_thenTheCompletionHandlerIsCalledWithAFailure() throws {
+        let url = URL(string: "http://test.com/example")!
+        //a readable file, so the only reason to fail is the status code
+        let fileURL = try XCTUnwrap(Bundle(for: type(of: self)).url(forResource: "square", withExtension: "pdf"))
+        
+        let session = StubDownloadSession()
+        let sut = createSUT(session: session)
+        
+        let downloadTask = StubDownloadTask()
+        downloadTask.taskIdentifierToReturn = 1
+        session.downloadTaskToReturn = downloadTask
+        
+        var receivedResult: Result<Data, Error>?
+        let completionExpectation = expectation(description: "completionExpectation")
+        sut.download(url) { (result) in
+            receivedResult = result
+            completionExpectation.fulfill()
+        }
+        
+        sut.handleFinishedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, statusCode: 404, to: fileURL)
+        
+        waitForExpectations(timeout: 3, handler: nil)
+        
+        guard case let .failure(error) = try XCTUnwrap(receivedResult),
+              case let DownloadError.unacceptableStatusCode(statusCode) = error else {
+            XCTFail("Expected an unacceptable status code failure")
+            return
+        }
+        
+        XCTAssertEqual(statusCode, 404)
+    }
+    
+    func test_givenPausedDownload_whenTheResumedDownloadFinishesWithPartialContent_thenTheCompletionHandlerReceivesTheFileContents() throws {
+        let url = URL(string: "http://test.com/example")!
+        let fileURL = try XCTUnwrap(Bundle(for: type(of: self)).url(forResource: "square", withExtension: "pdf"))
+        let expectedData = try Data(contentsOf: fileURL)
+        
+        let session = StubDownloadSession()
+        let sut = createSUT(session: session)
+        
+        let downloadTask = StubDownloadTask()
+        downloadTask.taskIdentifierToReturn = 1
+        session.downloadTaskToReturn = downloadTask
+        
+        let downloadToken = sut.download(url) { _ in }
+        sut.cancel(downloadToken)
+        
+        guard case let .cancelByProducingResumeData(resumeDataHandler) = downloadTask.events.last else {
+            XCTFail("Unexpected event")
+            return
+        }
+        
+        resumeDataHandler(Data("resumption".utf8))
+        
+        let resumedDownloadTask = StubDownloadTask()
+        resumedDownloadTask.taskIdentifierToReturn = 2
+        session.downloadTaskWithResumeDataToReturn = resumedDownloadTask
+        
+        var receivedResult: Result<Data, Error>?
+        let completionExpectation = expectation(description: "completionExpectation")
+        sut.download(url) { (result) in
+            receivedResult = result
+            completionExpectation.fulfill()
+        }
+        
+        guard case .downloadTaskWithResumeData = session.events.last else {
+            XCTFail("Expected the resumption data to be used")
+            return
+        }
+        
+        //a resumed download completes with 206 rather than 200, so it has to be accepted
+        sut.handleFinishedDownloading(for: url, taskIdentifier: resumedDownloadTask.taskIdentifier, statusCode: 206, to: fileURL)
+        
+        waitForExpectations(timeout: 3, handler: nil)
+        
+        guard case let .success(data) = try XCTUnwrap(receivedResult) else {
+            XCTFail("Expected a success result")
+            return
+        }
+        
+        XCTAssertEqual(data, expectedData)
+    }
+    
+    func test_givenScheduledDownload_whenTheDownloadFinishesWithoutAnHTTPResponse_thenTheCompletionHandlerReceivesAnInvalidResponseFailure() throws {
+        let url = URL(string: "http://test.com/example")!
+        //a readable file, so the only reason to fail is the missing response
+        let fileURL = try XCTUnwrap(Bundle(for: type(of: self)).url(forResource: "square", withExtension: "pdf"))
+        
+        let session = StubDownloadSession()
+        let sut = createSUT(session: session)
+        
+        let downloadTask = StubDownloadTask()
+        downloadTask.taskIdentifierToReturn = 1
+        session.downloadTaskToReturn = downloadTask
+        
+        var receivedResult: Result<Data, Error>?
+        let completionExpectation = expectation(description: "completionExpectation")
+        sut.download(url) { (result) in
+            receivedResult = result
+            completionExpectation.fulfill()
+        }
+        
+        //only HTTP downloads are supported, so a response with no status code is a failure
+        sut.handleFinishedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, statusCode: nil, to: fileURL)
+        
+        waitForExpectations(timeout: 3, handler: nil)
+        
+        guard case let .failure(error) = try XCTUnwrap(receivedResult),
+              case DownloadError.invalidResponse = error else {
+            XCTFail("Expected an invalid response failure")
             return
         }
     }
@@ -624,7 +738,7 @@ class DownloaderTests: XCTestCase {
         
         sut.handleProgress(for: unknownURL, totalBytesWritten: 50, expectedTotalBytes: 100)
         sut.handleResumption(for: unknownURL, fileOffset: 50, expectedTotalBytes: 100)
-        sut.handleFinishedDownloading(for: unknownURL, taskIdentifier: unknownTaskIdentifier, to: URL(fileURLWithPath: "/dev/null"))
+        sut.handleFinishedDownloading(for: unknownURL, taskIdentifier: unknownTaskIdentifier, statusCode: 200, to: URL(fileURLWithPath: "/dev/null"))
         sut.handleFailedDownloading(for: unknownURL, taskIdentifier: unknownTaskIdentifier, error: TestError.test)
         
         XCTAssertTrue(results.isEmpty)
@@ -712,7 +826,7 @@ class DownloaderTests: XCTestCase {
         
         XCTAssertEqual(session.events.count, 1)
         
-        sut.handleFinishedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, to: fileURL)
+        sut.handleFinishedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, statusCode: 200, to: fileURL)
         
         //one read of the file, handed to everybody who coalesced onto the download
         guard case let .success(firstData) = try XCTUnwrap(firstResult),
@@ -867,6 +981,40 @@ class DownloaderTests: XCTestCase {
             XCTFail("Expected the resumption data to be used exactly once")
             return
         }
+    }
+
+    func test_givenTwoCoalescedDownloads_whenTheDownloadFinishesWithAnUnacceptableStatusCode_thenBothCompletionHandlersReceiveTheFailure() throws {
+        let url = URL(string: "http://test.com/example")!
+        let fileURL = try XCTUnwrap(Bundle(for: type(of: self)).url(forResource: "square", withExtension: "pdf"))
+        
+        let session = StubDownloadSession()
+        let sut = createSUT(session: session)
+        
+        let downloadTask = StubDownloadTask()
+        downloadTask.taskIdentifierToReturn = 1
+        session.downloadTaskToReturn = downloadTask
+        
+        var firstResult: Result<Data, Error>?
+        sut.download(url) { firstResult = $0 }
+        
+        var secondResult: Result<Data, Error>?
+        sut.download(url) { secondResult = $0 }
+        
+        XCTAssertEqual(session.events.count, 1)
+        
+        sut.handleFinishedDownloading(for: url, taskIdentifier: downloadTask.taskIdentifier, statusCode: 404, to: fileURL)
+        
+        //the failure is made once and handed to everybody who coalesced onto the download
+        guard case let .failure(firstError) = try XCTUnwrap(firstResult),
+              case let DownloadError.unacceptableStatusCode(firstStatusCode) = firstError,
+              case let .failure(secondError) = try XCTUnwrap(secondResult),
+              case let DownloadError.unacceptableStatusCode(secondStatusCode) = secondError else {
+            XCTFail("Expected both callers to receive an unacceptable status code failure")
+            return
+        }
+        
+        XCTAssertEqual(firstStatusCode, 404)
+        XCTAssertEqual(secondStatusCode, 404)
     }
 }
 

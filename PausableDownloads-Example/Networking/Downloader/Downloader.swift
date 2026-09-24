@@ -9,12 +9,8 @@
 import Foundation
 import os
 
-//called on whichever thread `URLSession` delivers on, or on the thread that called
-//`cancel(_:)` - callers hop to their own queue
 typealias DownloadCompletionHandler = (Result<Data, Error>) -> ()
 
-//identifies one caller's interest in a URL rather than one download, so several callers
-//can coalesce onto a single download of that URL and each cancel independently
 struct DownloadToken: Hashable {
     private let id = UUID()
 
@@ -25,8 +21,10 @@ struct DownloadToken: Hashable {
 
 enum DownloadError: Error {
     case cancelled
-    case failed(underlyingError: Error?)
-    case invalidData(underlyingError: Error?)
+    case transportFailure(Error)
+    case invalidResponse
+    case unacceptableStatusCode(Int)
+    case fileReadFailed(Error)
 }
 
 protocol Downloader {
@@ -164,9 +162,7 @@ final class DefaultDownloader: NSObject, Downloader {
                 return (completionHandler, nil)
             }
 
-            //nobody is left waiting, so the download goes straight away rather than once
-            //pausing has finished - a pause is never left half-done, and the next request
-            //always starts a new task
+            //nobody is left waiting so clear out download
             downloads[url] = nil
 
             return (completionHandler, (download.task, url))
@@ -247,9 +243,33 @@ final class DefaultDownloader: NSObject, Downloader {
     //that can't be read is delivered as a failure rather than left lingering
     func handleFinishedDownloading(for url: URL,
                                    taskIdentifier: Int,
+                                   statusCode: Int?,
                                    to location: URL) {
         guard let completionHandlers = clearDownload(for: url,
                                                      taskIdentifier: taskIdentifier) else {
+            return
+        }
+        
+        //only HTTP downloads are supported, so a response without a status code isn't
+        //one that can be judged and is treated as a failure rather than taken on trust
+        guard let statusCode else {
+            os_log(.error, "Download completed for: %{public}@ without an HTTP response", url.absoluteString)
+            
+            let result: Result<Data, Error> = .failure(DownloadError.invalidResponse)
+            completionHandlers.forEach { $0(result) }
+            
+            return
+        }
+        
+        //`URLSession` only treats a transport failure as an error, so a non-2xx response
+        //arrives here as though its body were the file that was asked for. A resumed task
+        //completes with 206, so anything in the 2xx range is accepted rather than just 200
+        guard (200..<300).contains(statusCode) else {
+            os_log(.error, "Download failed for: %{public}@ with status code: %{public}d", url.absoluteString, statusCode)
+            
+            let result: Result<Data, Error> = .failure(DownloadError.unacceptableStatusCode(statusCode))
+            completionHandlers.forEach { $0(result) }
+            
             return
         }
         
@@ -260,7 +280,7 @@ final class DefaultDownloader: NSObject, Downloader {
             
             os_log(.info, "Download completed for: %{public}@", url.absoluteString)
         } catch let error {
-            result = .failure(DownloadError.invalidData(underlyingError: error))
+            result = .failure(DownloadError.fileReadFailed(error))
             
             os_log(.error, "Download completed for: %{public}@ but its file could not be read: %{public}@", url.absoluteString, error.localizedDescription)
         }
@@ -286,7 +306,7 @@ final class DefaultDownloader: NSObject, Downloader {
         
         os_log(.error, "Download failed for: %{public}@ with error: %{public}@", url.absoluteString, error.localizedDescription)
         
-        let result: Result<Data, Error> = .failure(DownloadError.failed(underlyingError: error))
+        let result: Result<Data, Error> = .failure(DownloadError.transportFailure(error))
         completionHandlers.forEach { $0(result) }
     }
     
@@ -357,6 +377,7 @@ extension DefaultDownloader: URLSessionDownloadDelegate {
         
         handleFinishedDownloading(for: url,
                                   taskIdentifier: downloadTask.taskIdentifier,
+                                  statusCode: (downloadTask.response as? HTTPURLResponse)?.statusCode,
                                   to: location)
     }
     
