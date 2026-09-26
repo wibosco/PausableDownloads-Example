@@ -5,4 +5,12 @@
 # PausableDownloads-Example
 An example project about pausing and resuming download requests, https://williamboles.com/not-all-downloads-are-born-equal/
 
-In order to run this project, you will need to register with [Imgur](https://api.imgur.com/oauth2/addclient) to get a `client-id` token to access Imgur's API (which the project uses to get its example content). Once you have your `client-id`, add it to the project as the value of the `clientID` property in the `RequestConfig` class and the project should now run. If you have any trouble getting the project to run, please create an issue or get in touch with me on Twitter at [wibosco](https://twitter.com/wibosco).
+In order to run this project, you will need to register with [TheCatAPI](https://thecatapi.com/) to get an API key to access TheCatAPI's API (which the project uses to get its example content). Once you have your key, add an `xcconfig` file called `Secrets` to the top directory with your key as the value of `CAT_API_KEY` and the project should now run. If you have any trouble getting the project to run, please create an issue or get in touch with me on Twitter at [wibosco](https://twitter.com/wibosco).
+
+## Seeing a download resume
+
+The app is a gallery of cat images that you swipe through, downloading each image as you reach it. Swiping away from an image that hasn't finished downloading pauses it and holds onto its resumption data; swiping back resumes that download from where it left off rather than starting it again.
+
+The console is where you see this happen. Swiping away logs `Pausing download: ...` and then the resumption data that cancelling produced; swiping back logs `Resuming an existing download: ...` followed by `Resuming download: ... from: NN.NN%` - the percentage the download is picking back up from rather than starting over at.
+
+Images are requested at their full size so that there is time to swipe away mid-download, but on a fast connection they can still complete in well under a second. Turning on **Network Link Conditioner** with a slow profile makes the pause and resume easy to catch.
